@@ -90,7 +90,12 @@ systemctl daemon-reload
 
 echo "[7/7] Setting up global focalors CLI command..."
 chmod +x "$PROJECT_DIR/focalors"
-ln -sf "$PROJECT_DIR/focalors" /usr/local/bin/focalors
+cat << EOF > /usr/local/bin/focalors
+#!/usr/bin/env bash
+cd "$PROJECT_DIR"
+exec bun run "$PROJECT_DIR/src/cli.ts" "\$@"
+EOF
+chmod +x /usr/local/bin/focalors
 
 echo "=========================================================="
 echo " Setup complete!"

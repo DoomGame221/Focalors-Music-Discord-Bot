@@ -327,7 +327,9 @@ async function main(): Promise<void> {
 
     case "deploy": {
       console.log(`${blue("▶")} Deploying Discord Slash Commands...`);
+      const projectRoot = import.meta.dir ? `${import.meta.dir}/..` : process.cwd();
       const proc = Bun.spawn(["bun", "run", "src/deploy-commands.ts"], {
+        cwd: projectRoot,
         stdin: "inherit",
         stdout: "inherit",
         stderr: "inherit",
