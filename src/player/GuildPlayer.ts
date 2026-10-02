@@ -303,7 +303,7 @@ export class GuildPlayer extends EventEmitter {
   public isDestroyed: boolean = false;
   private isStopping: boolean = false;
 
-  public stopPlaying(clearQueue: boolean = true): void {
+  public stopPlaying(clearQueue: boolean = true, emitQueueEnd: boolean = true): void {
     this.isStopping = true;
     if (clearQueue) {
       this.queue.tracks.length = 0;
@@ -311,6 +311,9 @@ export class GuildPlayer extends EventEmitter {
     this.queue.current = null;
     this.stopPositionTimer();
     this.audioPlayer.stop();
+    if (emitQueueEnd && !this.isDestroyed) {
+      this.emit("queueEnd", this);
+    }
   }
 
   public idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -336,7 +339,7 @@ export class GuildPlayer extends EventEmitter {
     this.isDestroyed = true;
     logger.info(`Destroying player for guild [${this.guildId}]: ${reason || "manual"}`, "Player");
     this.stopIdleTimer();
-    this.stopPlaying(true);
+    this.stopPlaying(true, false);
     if (this.voiceConnection) {
       try {
         this.voiceConnection.destroy();

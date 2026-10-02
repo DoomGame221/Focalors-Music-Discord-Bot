@@ -94,29 +94,41 @@ export function buildQueueMenu(player: GuildPlayer, page: number = 1): QueueDisp
     components.push(selectRow);
   }
 
-  // Navigation buttons for pagination
+  // Navigation and action buttons
+  const actionButtons: ButtonBuilder[] = [];
+
   if (totalPages > 1) {
-    const navRow = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+    actionButtons.push(
       new ButtonBuilder()
         .setCustomId(`queue_page_${currentPage - 1}`)
-        .setLabel("Previous Page")
+        .setLabel("Previous")
         .setEmoji("⬅️")
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(currentPage <= 1),
       new ButtonBuilder()
         .setCustomId(`queue_page_${currentPage + 1}`)
-        .setLabel("Next Page")
+        .setLabel("Next")
         .setEmoji("➡️")
         .setStyle(ButtonStyle.Secondary)
-        .setDisabled(currentPage >= totalPages),
-      new ButtonBuilder()
-        .setCustomId("queue_refresh")
-        .setLabel("Refresh")
-        .setEmoji("🔄")
-        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentPage >= totalPages)
     );
-    components.push(navRow);
   }
+
+  actionButtons.push(
+    new ButtonBuilder()
+      .setCustomId("queue_refresh")
+      .setLabel("รีเฟรช")
+      .setEmoji("🔄")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("queue_btn_close")
+      .setLabel("ปิดหน้ารายการคิว")
+      .setEmoji("❌")
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  const btnRow = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(actionButtons);
+  components.push(btnRow);
 
   return { embed, components };
 }

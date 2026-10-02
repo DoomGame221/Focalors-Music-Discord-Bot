@@ -30,6 +30,7 @@ import { getVoiceChannel } from "../utils/voice";
 export class FocalorsClient extends Client {
   public playerManager: PlayerManager;
   private userVolumePanels = new Map<string, { messageId: string }>();
+  private userQueuePanels = new Map<string, { messageId: string }>();
 
   // Compatibility getter so existing code calling client.lavalink continues to work
   public get lavalink(): PlayerManager {
@@ -158,6 +159,19 @@ export class FocalorsClient extends Client {
       } else {
         await interaction.reply({ content: "❌ No active player found!", ephemeral: true });
       }
+      return;
+    }
+
+    if (customId === "queue_btn_close") {
+      const userKey = `${guildId}_${interaction.user.id}`;
+      this.userQueuePanels.delete(userKey);
+      await interaction.update({
+        content: "❌ *ปิดหน้ารายการคิวแล้ว*",
+        embeds: [],
+        components: [],
+      }).catch(async () => {
+        await interaction.deleteReply().catch(() => {});
+      });
       return;
     }
 
@@ -343,9 +357,7 @@ export class FocalorsClient extends Client {
       case "ctrl_stop": {
         player.queue.tracks.splice(0, player.queue.tracks.length);
         (player as any).set?.("autoplay", false);
-        await player.stopPlaying(true);
-        await controllerUpdater.deleteOldController(this, guildId);
-        controllerUpdater.clear(guildId);
+        player.stopPlaying(true, true);
         break;
       }
       case "ctrl_leave": {
@@ -360,12 +372,25 @@ export class FocalorsClient extends Client {
         break;
       }
       case "ctrl_queuelist": {
-        const menu = buildQueueMenu(player, 1);
-        await interaction.followUp({
-          embeds: [menu.embed],
-          components: menu.components,
-          ephemeral: true,
-        });
+        const userKey = `${guildId}_${interaction.user.id}`;
+        const existing = this.userQueuePanels.get(userKey);
+
+        if (existing) {
+          try {
+            await interaction.webhook.deleteMessage(existing.messageId);
+          } catch {}
+          this.userQueuePanels.delete(userKey);
+        } else {
+          const menu = buildQueueMenu(player, 1);
+          const msg = await interaction.followUp({
+            embeds: [menu.embed],
+            components: menu.components,
+            ephemeral: true,
+          });
+          if (msg?.id) {
+            this.userQueuePanels.set(userKey, { messageId: msg.id });
+          }
+        }
         break;
       }
       case "ctrl_filters": {
@@ -424,9 +449,12 @@ export class FocalorsClient extends Client {
           const jumpedTrack = await player.skipTo(targetIndex);
           if (jumpedTrack) {
             controllerUpdater.requestUpdate(this, player);
-            await interaction.reply({
+            const userKey = `${guildId}_${interaction.user.id}`;
+            this.userQueuePanels.delete(userKey);
+            await interaction.update({
               content: `⏭️ ข้ามไปยังเพลง: **${escapeMarkdown(jumpedTrack.info.title || "Selected track")}** เรียบร้อยแล้ว!`,
-              ephemeral: true,
+              embeds: [],
+              components: [],
             });
             return;
           }
@@ -529,12 +557,32 @@ export class FocalorsClient extends Client {
       player.setVolume(num);
       controllerUpdater.requestUpdate(this, player);
       const menu = buildVolumeMenu(player);
-      await interaction.reply({
-        content: `🔊 ปรับระดับเสียงเป็น **${num}%** เรียบร้อยแล้ว!`,
-        embeds: [menu.embed],
-        components: menu.components,
-        ephemeral: true,
-      });
+      if (interaction.isFromMessage()) {
+        await interaction.update({
+          content: `🔊 ปรับระดับเสียงเป็น **${num}%** เรียบร้อยแล้ว!`,
+          embeds: [menu.embed],
+          components: menu.components,
+        });
+      } else {
+        const userKey = `${interaction.guildId}_${interaction.user.id}`;
+        const existing = this.userVolumePanels.get(userKey);
+        if (existing) {
+          try {
+            await interaction.webhook.deleteMessage(existing.messageId);
+          } catch {}
+          this.userVolumePanels.delete(userKey);
+        }
+        const reply = await interaction.reply({
+          content: `🔊 ปรับระดับเสียงเป็น **${num}%** เรียบร้อยแล้ว!`,
+          embeds: [menu.embed],
+          components: menu.components,
+          ephemeral: true,
+          fetchReply: true,
+        });
+        if (reply?.id) {
+          this.userVolumePanels.set(userKey, { messageId: reply.id });
+        }
+      }
       return;
     }
   }

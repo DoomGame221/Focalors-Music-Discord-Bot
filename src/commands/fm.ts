@@ -467,11 +467,9 @@ async function handleStop(interaction: ChatInputCommandInteraction, client: Foca
   player.queue.tracks.splice(0, player.queue.tracks.length);
   // Turn off autoplay so it doesn't automatically queue more songs
   (player as any).set?.("autoplay", false);
-  // Stop current track but stay in voice channel
-  await player.stopPlaying(true);
-  await controllerUpdater.deleteOldController(client, interaction.guildId!);
-  controllerUpdater.clear(interaction.guildId!);
-  await interaction.reply({ content: "⏹️ หยุดเล่นเพลง ล้างคิว และปิดหน้าควบคุมเรียบร้อยแล้ว (บอทยังคงอยู่ในห้องเสียง)" });
+  // Stop current track but stay in voice channel and emit queueEnd
+  player.stopPlaying(true, true);
+  await interaction.reply({ content: "⏹️ หยุดเล่นเพลงและล้างคิวเรียบร้อยแล้ว (บอทยังคงอยู่ในห้องเสียง)", ephemeral: true });
 }
 
 async function handleLeave(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
