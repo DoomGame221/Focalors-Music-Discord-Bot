@@ -91,6 +91,7 @@ logging:
     root: INFO
     lavalink: INFO
     dev.lavalink.youtube: INFO
+    dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
   request:
     enabled: true
     includeClientInfo: true

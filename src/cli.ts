@@ -251,7 +251,17 @@ function syncLavalinkConfig(): void {
   if (existsSync(src) && existsSync(destDir)) {
     try {
       copyFileSync(src, dest);
-    } catch {}
+      console.log(green("✔ Synced application.yml to lavalink-server"));
+    } catch {
+      if (process.platform !== "win32") {
+        try {
+          Bun.spawnSync(["sudo", "cp", "-f", src, dest]);
+          console.log(green("✔ Synced application.yml to lavalink-server (via sudo)"));
+        } catch (err: any) {
+          console.log(yellow(`[Warning] Could not sync application.yml: ${err?.message || err}`));
+        }
+      }
+    }
   }
 }
 

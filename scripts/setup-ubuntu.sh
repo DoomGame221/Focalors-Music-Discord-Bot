@@ -45,7 +45,7 @@ if [ ! -f "Lavalink.jar" ]; then
     echo "Downloading latest Lavalink v4..."
     curl -Lo Lavalink.jar https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
 fi
-cp -f "$PROJECT_DIR/application.yml" ./application.yml
+ln -sf "$PROJECT_DIR/application.yml" "$PROJECT_DIR/lavalink-server/application.yml"
 cd "$PROJECT_DIR"
 
 echo "[6/6] Creating Systemd Service files..."
@@ -94,6 +94,10 @@ cd "$PROJECT_DIR"
 exec bun run "$PROJECT_DIR/src/cli.ts" "\$@"
 EOF
 chmod +x /usr/local/bin/focalors
+
+if [ -n "$SUDO_USER" ]; then
+    chown -R "$SUDO_USER:$SUDO_USER" "$PROJECT_DIR"
+fi
 
 echo "=========================================================="
 echo " Setup complete!"
