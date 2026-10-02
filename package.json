@@ -13,7 +13,8 @@
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
     "deploy": "bun run src/deploy-commands.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "cli": "bun run src/cli.ts"
   },
   "dependencies": {
     "colorette": "^2.0.20",

@@ -116,17 +116,12 @@ LAVALINK_PASSWORD=halflife3isnotreal
 bun run deploy
 ```
 
-### ขั้นตอนที่ 4: รัน Lavalink v4
-คุณสามารถรันผ่าน Docker ได้ทันที:
+### ขั้นตอนที่ 4: รัน Lavalink v4 และ Bot ภายในเครื่อง
+1. รัน Lavalink v4 (เครื่องยนต์เสียง):
 ```bash
-docker compose up -d
+cd lavalink-server && java -jar Lavalink.jar
 ```
-หรือหากต้องการรันผ่าน `Lavalink.jar` บนเซิร์ฟเวอร์โดยตรง:
-```bash
-java -jar Lavalink.jar
-```
-
-### ขั้นตอนที่ 5: เริ่มต้นการทำงานของบอท
+2. รันบอท Focalors Music:
 ```bash
 bun run start
 ```
@@ -134,23 +129,29 @@ bun run start
 
 ---
 
-## 🐧 การติดตั้งบน Ubuntu Server (One-Click Setup)
+## 🐧 การติดตั้งบน Ubuntu Server (One-Click Setup & CLI Control)
 
 บนเครื่อง Ubuntu Server (22.04 หรือ 24.04 LTS):
 ```bash
 sudo bash scripts/setup-ubuntu.sh
 ```
-สคริปต์จะทำการ:
-1. ติดตั้ง Java 21 OpenJDK, FFmpeg, Bun
-2. ดาวน์โหลด `Lavalink.jar` ล่าสุดพร้อมตั้งค่า `application.yml`
-3. สร้าง Systemd Service (`focalors-lavalink.service` และ `focalors-bot.service`) ให้อัตโนมัติ เพื่อให้บอทเปิดทำงานตลอดเวลาใน Background และเปิดใหม่อัตโนมัติหากเครื่องรีสตาร์ท
+สคริปต์จะทำการติดตั้ง Java 21, FFmpeg, Bun, ดาวน์โหลด Lavalink.jar และสร้าง Systemd Service รวมถึงตั้งค่าคำสั่ง CLI กลางให้อัตโนมัติ!
 
-คำสั่งควบคุม Service บน Ubuntu:
-```bash
-sudo systemctl start focalors-lavalink
-sudo systemctl start focalors-bot
-sudo systemctl status focalors-bot
-```
+### 🖥️ Focalors CLI — เครื่องมือควบคุมและมอนิเตอร์บอทผ่าน Terminal
+
+คุณสามารถพิมพ์คำสั่ง `focalors <command>` (หรือ `bun run cli <command>`) เพื่อควบคุมระบบได้ทันที:
+
+| คำสั่ง CLI | คำอธิบาย |
+|---|---|
+| `focalors status` | ตรวจสอบสถานะภาพรวมทั้งหมด: Service, Lavalink CPU/RAM/Uptime, สถิติ SQLite |
+| `focalors monitor` | เปิดหน้าต่าง Terminal Dashboard สด รีเฟรชแบบเรียลไทม์ทุก 2 วินาที |
+| `focalors start` | เริ่มการทำงานของบอทและ Lavalink (ทำงานเบื้องหลัง) |
+| `focalors stop` | สั่งหยุดการทำงานของบอทและ Lavalink |
+| `focalors restart` | รีสตาร์ทบอทและ Lavalink |
+| `focalors logs bot` | ดู Log การทำงานของบอทแบบสดๆ (Live stream) |
+| `focalors logs lavalink` | ดู Log การทำงานของ Lavalink แบบสดๆ |
+| `focalors db list` | ดูรายการ Playlist ทั้งหมดที่ถูกบันทึกไว้ใน SQLite |
+| `focalors deploy` | ลงทะเบียนคำสั่ง Slash Command `/fm` กับ Discord ใหม่ |
 
 ---
 

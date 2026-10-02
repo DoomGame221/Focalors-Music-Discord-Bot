@@ -88,13 +88,17 @@ EOF
 
 systemctl daemon-reload
 
+echo "[7/7] Setting up global focalors CLI command..."
+chmod +x "$PROJECT_DIR/focalors"
+ln -sf "$PROJECT_DIR/focalors" /usr/local/bin/focalors
+
 echo "=========================================================="
 echo " Setup complete!"
 echo " Next steps:"
 echo " 1. Ensure your .env has DISCORD_TOKEN and DISCORD_CLIENT_ID"
-echo " 2. Register commands: bun run deploy"
-echo " 3. Start Lavalink:    sudo systemctl start focalors-lavalink"
-echo " 4. Start Bot:         sudo systemctl start focalors-bot"
-echo " Check status:         sudo systemctl status focalors-bot"
-echo " View logs:            journalctl -u focalors-bot -f"
+echo " 2. Register commands: focalors deploy"
+echo " 3. Start Lavalink:    focalors start lavalink"
+echo " 4. Start Bot:         focalors start bot"
+echo " Monitor everything:   focalors status  (or focalors monitor)"
+echo " View live logs:       focalors logs bot"
 echo "=========================================================="
