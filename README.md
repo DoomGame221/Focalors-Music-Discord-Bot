@@ -107,8 +107,8 @@ cp .env.example .env
 DISCORD_TOKEN=โทเคนบอทของคุณ
 DISCORD_CLIENT_ID=ไอดีแอปพลิเคชันบอทของคุณ
 LAVALINK_HOST=localhost
-LAVALINK_PORT=2333
-LAVALINK_PASSWORD=youshallnotpass
+LAVALINK_PORT=2639
+LAVALINK_PASSWORD=halflife3isnotreal
 ```
 
 ### ขั้นตอนที่ 3: ลงทะเบียน Slash Commands (`/fm`)

@@ -12,36 +12,46 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-echo "[1/5] Updating packages and installing essentials..."
-apt-get update -y
-apt-get install -y curl unzip git ffmpeg openjdk-21-jre-headless
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+echo "Project Directory: $PROJECT_DIR"
 
-echo "[2/5] Installing Bun runtime..."
+echo "[1/6] Updating apt packages and installing essentials..."
+apt-get update -y
+apt-get install -y curl unzip git ffmpeg openjdk-21-jre-headless build-essential
+
+echo "[2/6] Installing Bun runtime..."
 if ! command -v bun &> /dev/null; then
     curl -fsSL https://bun.sh/install | bash
     # Export bun to global bin
     cp /root/.bun/bin/bun /usr/local/bin/bun || true
 fi
 
-echo "[3/5] Verifying installed runtimes..."
+# Ensure bun is in PATH
+export PATH="/root/.bun/bin:/usr/local/bin:$PATH"
+
+echo "[3/6] Verifying installed runtimes..."
 java -version
 bun --version
 ffmpeg -version | head -n 1
 
-echo "[4/5] Downloading Lavalink v4.jar..."
-mkdir -p lavalink-server
-cd lavalink-server
+echo "[4/6] Installing bot node_modules via Bun..."
+cd "$PROJECT_DIR"
+bun install
+
+echo "[5/6] Setting up Lavalink v4.jar..."
+mkdir -p "$PROJECT_DIR/lavalink-server"
+cd "$PROJECT_DIR/lavalink-server"
 if [ ! -f "Lavalink.jar" ]; then
     echo "Downloading latest Lavalink v4..."
     curl -Lo Lavalink.jar https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
 fi
 if [ ! -f "application.yml" ]; then
-    cp ../application.yml ./application.yml || true
+    cp "$PROJECT_DIR/application.yml" ./application.yml || true
 fi
-cd ..
+cd "$PROJECT_DIR"
 
-echo "[5/5] Creating Systemd Service templates..."
-cat << 'EOF' > /etc/systemd/system/focalors-lavalink.service
+echo "[6/6] Creating Systemd Service files..."
+cat << EOF > /etc/systemd/system/focalors-lavalink.service
 [Unit]
 Description=Lavalink v4 Audio Server for Focalors Music
 After=network.target
@@ -49,7 +59,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/Focalors-Music-Discord-Bot/lavalink-server
+WorkingDirectory=$PROJECT_DIR/lavalink-server
 ExecStart=/usr/bin/java -Xmx2G -jar Lavalink.jar
 Restart=always
 RestartSec=5
@@ -58,7 +68,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-cat << 'EOF' > /etc/systemd/system/focalors-bot.service
+cat << EOF > /etc/systemd/system/focalors-bot.service
 [Unit]
 Description=Focalors Music Discord Bot (Bun Runtime)
 After=network.target focalors-lavalink.service
@@ -66,8 +76,8 @@ After=network.target focalors-lavalink.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/Focalors-Music-Discord-Bot
-EnvironmentFile=/opt/Focalors-Music-Discord-Bot/.env
+WorkingDirectory=$PROJECT_DIR
+EnvironmentFile=$PROJECT_DIR/.env
 ExecStart=/usr/local/bin/bun run src/index.ts
 Restart=always
 RestartSec=5
@@ -81,9 +91,10 @@ systemctl daemon-reload
 echo "=========================================================="
 echo " Setup complete!"
 echo " Next steps:"
-echo " 1. Configure .env with your DISCORD_TOKEN and DISCORD_CLIENT_ID"
-echo " 2. Run 'bun install'"
-echo " 3. Start Lavalink: sudo systemctl start focalors-lavalink"
-echo " 4. Start Bot:      sudo systemctl start focalors-bot"
-echo " Or test manually:  bun run src/index.ts"
+echo " 1. Ensure your .env has DISCORD_TOKEN and DISCORD_CLIENT_ID"
+echo " 2. Register commands: bun run deploy"
+echo " 3. Start Lavalink:    sudo systemctl start focalors-lavalink"
+echo " 4. Start Bot:         sudo systemctl start focalors-bot"
+echo " Check status:         sudo systemctl status focalors-bot"
+echo " View logs:            journalctl -u focalors-bot -f"
 echo "=========================================================="

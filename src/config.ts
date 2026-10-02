@@ -28,8 +28,8 @@ export const config: BotConfig = {
   },
   lavalink: {
     host: process.env.LAVALINK_HOST || "localhost",
-    port: parseInt(process.env.LAVALINK_PORT || "2333", 10),
-    password: process.env.LAVALINK_PASSWORD || "youshallnotpass",
+    port: parseInt(process.env.LAVALINK_PORT || "2639", 10),
+    password: process.env.LAVALINK_PASSWORD || "halflife3isnotreal",
     secure: process.env.LAVALINK_SECURE === "true",
   },
   bot: {
