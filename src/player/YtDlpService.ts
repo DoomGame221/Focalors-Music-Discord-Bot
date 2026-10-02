@@ -31,6 +31,20 @@ export class YtDlpService {
       "--prefer-free-formats",
       "--ignore-errors",
     ];
+
+    if (!this.cookiesPath || !existsSync(this.cookiesPath)) {
+      const candidates = [
+        path.join(process.cwd(), "cookies.txt"),
+        path.join(process.env.HOME || "", "cookies.txt"),
+      ];
+      for (const p of candidates) {
+        if (p && existsSync(p)) {
+          this.cookiesPath = p;
+          break;
+        }
+      }
+    }
+
     if (this.cookiesPath && existsSync(this.cookiesPath)) {
       args.push("--cookies", this.cookiesPath);
     }
