@@ -91,6 +91,7 @@ export class PlayerManager {
 
     player.on("queueEnd", async (p: GuildPlayer) => {
       logger.info(`Queue ended in guild [${p.guildId}]`, "Player");
+      await controllerUpdater.deleteOldController(this.client, p.guildId);
       controllerUpdater.clear(p.guildId);
 
       // Autoplay handler
@@ -127,8 +128,9 @@ export class PlayerManager {
       }
     });
 
-    player.on("playerDestroy", (p: GuildPlayer) => {
+    player.on("playerDestroy", async (p: GuildPlayer) => {
       this.players.delete(p.guildId);
+      await controllerUpdater.deleteOldController(this.client, p.guildId);
       controllerUpdater.clear(p.guildId);
     });
   }

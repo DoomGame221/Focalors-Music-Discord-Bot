@@ -196,10 +196,17 @@ export class FocalorsClient extends Client {
         player.queue.tracks.splice(0, player.queue.tracks.length);
         (player as any).set?.("autoplay", false);
         await player.stopPlaying(true);
+        await controllerUpdater.deleteOldController(this, guildId);
         controllerUpdater.clear(guildId);
         break;
       }
       case "ctrl_leave": {
+        await controllerUpdater.deleteOldController(this, guildId);
+        try {
+          if (interaction.message?.deletable) {
+            await interaction.message.delete();
+          }
+        } catch {}
         await player.destroy("Controller leave button");
         controllerUpdater.clear(guildId);
         break;
@@ -264,18 +271,20 @@ export class FocalorsClient extends Client {
       if (selectedValue?.startsWith("queue_jump_")) {
         const targetIndex = parseInt(selectedValue.replace("queue_jump_", ""), 10);
         if (targetIndex >= 0 && targetIndex < player.queue.tracks.length) {
-          const targetTrack = player.queue.tracks[targetIndex];
-          // Skip tracks before target
-          if (targetIndex > 0) {
-            player.queue.splice(0, targetIndex);
+          const jumpedTrack = await player.skipTo(targetIndex);
+          if (jumpedTrack) {
+            controllerUpdater.requestUpdate(this, player);
+            await interaction.reply({
+              content: `⏭️ ข้ามไปยังเพลง: **${escapeMarkdown(jumpedTrack.info.title || "Selected track")}** เรียบร้อยแล้ว!`,
+              ephemeral: true,
+            });
+            return;
           }
-          await player.skip();
-          controllerUpdater.requestUpdate(this, player);
-          await interaction.reply({
-            content: `⏭️ Jumped directly to track: **${escapeMarkdown(targetTrack?.info?.title || "Selected track")}**!`,
-            ephemeral: true,
-          });
         }
+        await interaction.reply({
+          content: "❌ ไม่สามารถข้ามไปยังเพลงที่เลือกได้ (เพลงอาจถูกลบไปแล้ว)",
+          ephemeral: true,
+        });
       }
     } else if (customId === "filter_select") {
       const selectedFilter = interaction.values[0];

@@ -226,13 +226,42 @@ export class GuildPlayer extends EventEmitter {
     if (!this.queue.current) return false;
 
     if (this.repeatMode === "track") {
-      // Re-queue track
-      this.queue.tracks.unshift(this.queue.current);
+      this.repeatMode = "off";
     }
 
     this.stopPositionTimer();
     this.audioPlayer.stop();
     return true;
+  }
+
+  public async skipTo(targetIndex: number): Promise<Track | null> {
+    if (targetIndex < 0 || targetIndex >= this.queue.tracks.length) return null;
+
+    if (this.repeatMode === "track") {
+      this.repeatMode = "off";
+    }
+
+    // Splice tracks before target
+    if (targetIndex > 0) {
+      this.queue.tracks.splice(0, targetIndex);
+    }
+
+    const nextTrack = this.queue.tracks.shift();
+    if (!nextTrack) return null;
+
+    if (this.queue.current) {
+      this.queue.previous.unshift(this.queue.current);
+      if (this.queue.previous.length > 25) {
+        this.queue.previous.pop();
+      }
+      if (this.repeatMode === "queue") {
+        this.queue.tracks.push(this.queue.current);
+      }
+    }
+
+    this.stopPositionTimer();
+    await this.play({ track: nextTrack });
+    return nextTrack;
   }
 
   public async seek(positionMs: number): Promise<void> {

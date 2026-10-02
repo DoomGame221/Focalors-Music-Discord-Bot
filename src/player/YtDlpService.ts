@@ -117,7 +117,12 @@ export class YtDlpService {
         const id = item.id || item.url || "";
         const title = item.title || "Unknown Title";
         const author = item.uploader || item.artist || item.channel || "Unknown Artist";
-        const uri = item.webpage_url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : item.url);
+        let uri = item.webpage_url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : item.url);
+        if (item.id && /^[a-zA-Z0-9_-]{11}$/.test(item.id)) {
+          uri = `https://www.youtube.com/watch?v=${item.id}`;
+        } else if (uri && (uri.includes("youtube.com") || uri.includes("youtu.be"))) {
+          uri = uri.replace(/([?&])list=[^&]+(&|$)/, "$1").replace(/[?&]$/, "");
+        }
         const duration = (item.duration ? Math.round(item.duration * 1000) : 0);
         const artworkUrl = item.thumbnail || (item.thumbnails && item.thumbnails[0]?.url) || undefined;
 
@@ -158,11 +163,17 @@ export class YtDlpService {
     seekMs: number = 0,
     filter: FilterPreset = "reset"
   ): Readable {
+    let cleanUri = uri;
+    if (cleanUri.includes("youtube.com") || cleanUri.includes("youtu.be")) {
+      cleanUri = cleanUri.replace(/([?&])list=[^&]+(&|$)/, "$1").replace(/[?&]$/, "");
+    }
+
     const ytDlpArgs = [
       ...this.getBaseArgs(),
+      "--no-playlist",
       "-f", "bestaudio/best",
       "-o", "-",
-      uri,
+      cleanUri,
     ];
 
     const ytdlp = spawn("yt-dlp", ytDlpArgs, {

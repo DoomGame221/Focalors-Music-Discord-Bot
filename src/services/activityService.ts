@@ -3,28 +3,42 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  InviteTargetType,
+  PermissionFlagsBits,
   type VoiceBasedChannel,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 
-// Popular official Discord Activity Application IDs
+// Official Discord Activity Application IDs
 export const DISCORD_ACTIVITIES = {
-  YOUTUBE_TOGETHER: "880218394199220274",
-  WATCH_TOGETHER: "755600276941176913",
+  WATCH_TOGETHER: "880218394199220334", // Official YouTube Watch Together
   JAMSPACE: "1070089409705844786",
+  POKER_NIGHT: "755827207812677713",
+  CHESS_IN_THE_PARK: "832012774040141894",
 };
 
 export async function createActivityInvite(
   voiceChannel: VoiceBasedChannel,
-  applicationId: string = DISCORD_ACTIVITIES.YOUTUBE_TOGETHER
+  applicationId: string = DISCORD_ACTIVITIES.WATCH_TOGETHER
 ): Promise<{ url: string; code: string }> {
+  const botMember = voiceChannel.guild?.members?.me;
+  if (botMember) {
+    const perms = voiceChannel.permissionsFor(botMember);
+    if (!perms?.has(PermissionFlagsBits.CreateInstantInvite)) {
+      throw new Error("บอทขาดสิทธิ์ 'Create Instant Invite' (สร้างคำเชิญ) ในห้องเสียงนี้");
+    }
+    if (!perms?.has(PermissionFlagsBits.UseEmbeddedActivities)) {
+      throw new Error("บอทขาดสิทธิ์ 'Use Embedded Activities' (เริ่มกิจกรรม) ในห้องเสียงนี้");
+    }
+  }
+
   try {
-    const invite = await (voiceChannel as any).createInvite({
+    const invite = await voiceChannel.createInvite({
       maxAge: 86400, // 24 hours
       maxUses: 0,    // Unlimited uses
-      targetType: 2, // TARGET_TYPE_EMBEDDED_APPLICATION
+      targetType: InviteTargetType.EmbeddedApplication,
       targetApplication: applicationId,
     });
 
@@ -32,13 +46,16 @@ export async function createActivityInvite(
       url: `https://discord.gg/${invite.code}`,
       code: invite.code,
     };
-  } catch (err) {
+  } catch (err: any) {
     logger.error("Failed to create Discord Activity invite", "Activity", err);
-    throw err;
+    throw new Error(err?.message || "Discord API ไม่ตอบสนองการสร้างกิจกรรม");
   }
 }
 
-export function buildActivityComponent(inviteUrl: string, activityName: string = "YouTube Watch Together"): {
+export function buildActivityComponent(
+  inviteUrl: string,
+  activityName: string = "Watch Together (YouTube)"
+): {
   embed: EmbedBuilder;
   components: ActionRowBuilder<MessageActionRowComponentBuilder>[];
 } {
@@ -47,12 +64,12 @@ export function buildActivityComponent(inviteUrl: string, activityName: string =
     .setTitle(`📺 Focalors Video Hub — ${activityName}`)
     .setDescription(
       [
-        `Click the button below to launch **${activityName}** in your current voice channel!`,
+        `คลิกปุ่ม **"🚀 เปิด ${activityName}"** ด้านล่างเพื่อเริ่มดูวิดีโอในห้องเสียงของคุณ!`,
         "",
-        "✨ **Features:**",
-        "• Synchronized video playback with everyone in the room",
-        "• Safe & Official: 100% compliant with Discord Terms of Service",
-        "• Works seamlessly on both Discord Desktop & Mobile apps",
+        "✨ **ฟีเจอร์เด่น:**",
+        "• ซิงค์ภาพและเสียง YouTube ให้ทุกคนในห้องดูพร้อมกัน",
+        "• ไม่ต้องแชร์หน้าจอ ไม่กินสเปกเครื่อง",
+        "• ใช้งานได้ทั้งบนคอมและมือถืออย่างเป็นทางการผ่าน Discord",
       ].join("\n")
     )
     .setFooter({
@@ -60,7 +77,7 @@ export function buildActivityComponent(inviteUrl: string, activityName: string =
     });
 
   const button = new ButtonBuilder()
-    .setLabel(`Launch ${activityName}`)
+    .setLabel(`เปิด ${activityName}`)
     .setEmoji("🚀")
     .setStyle(ButtonStyle.Link)
     .setURL(inviteUrl);

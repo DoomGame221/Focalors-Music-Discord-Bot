@@ -467,8 +467,9 @@ async function handleStop(interaction: ChatInputCommandInteraction, client: Foca
   (player as any).set?.("autoplay", false);
   // Stop current track but stay in voice channel
   await player.stopPlaying(true);
+  await controllerUpdater.deleteOldController(client, interaction.guildId!);
   controllerUpdater.clear(interaction.guildId!);
-  await interaction.reply({ content: "⏹️ หยุดเล่นเพลงและล้างคิวทั้งหมดแล้ว (บอทยังคงอยู่ในห้องเสียง)" });
+  await interaction.reply({ content: "⏹️ หยุดเล่นเพลง ล้างคิว และปิดหน้าควบคุมเรียบร้อยแล้ว (บอทยังคงอยู่ในห้องเสียง)" });
 }
 
 async function handleLeave(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
@@ -476,9 +477,10 @@ async function handleLeave(interaction: ChatInputCommandInteraction, client: Foc
     await interaction.reply({ content: "❌ บอทไม่ได้อยู่ในห้องเสียง!", ephemeral: true });
     return;
   }
-  await player.destroy("Command leave");
+  await controllerUpdater.deleteOldController(client, interaction.guildId!);
   controllerUpdater.clear(interaction.guildId!);
-  await interaction.reply({ content: "🚪 ออกจากห้องเสียงเรียบร้อยแล้ว" });
+  await player.destroy("Command leave");
+  await interaction.reply({ content: "🚪 ออกจากห้องเสียงและปิดหน้าต่างควบคุมเรียบร้อยแล้ว" });
 }
 
 async function handleVolume(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
@@ -710,16 +712,25 @@ async function handleVideo(
   voiceChannel: any
 ): Promise<void> {
   await interaction.deferReply();
+  const videoUrl = interaction.options.getString("url");
   try {
     const invite = await createActivityInvite(voiceChannel);
     const component = buildActivityComponent(invite.url, "Watch Together (YouTube)");
+
+    if (videoUrl) {
+      component.embed.addFields({
+        name: "💡 วิดีโอที่คุณระบุ",
+        value: `[กดดูหรือ Copy ลิงก์ไปเปิดใน Watch Together](${videoUrl})`,
+      });
+    }
+
     await interaction.editReply({
       embeds: [component.embed],
       components: component.components,
     });
   } catch (err: any) {
     await interaction.editReply({
-      content: `❌ Failed to launch video activity: ${err?.message || err}`,
+      content: `❌ **ไม่สามารถเริ่มระบบ Watch Together ได้:** ${err?.message || err}`,
     });
   }
 }
