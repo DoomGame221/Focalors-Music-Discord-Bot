@@ -193,7 +193,14 @@ export class FocalorsClient extends Client {
         break;
       }
       case "ctrl_stop": {
-        await player.destroy("Controller stop button");
+        player.queue.tracks.splice(0, player.queue.tracks.length);
+        (player as any).set?.("autoplay", false);
+        await player.stopPlaying(true);
+        controllerUpdater.clear(guildId);
+        break;
+      }
+      case "ctrl_leave": {
+        await player.destroy("Controller leave button");
         controllerUpdater.clear(guildId);
         break;
       }

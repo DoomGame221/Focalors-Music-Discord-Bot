@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync } from "node:fs";
+import path from "node:path";
 import { config } from "./config";
 import { getDatabase } from "./database/sqlite";
 import { formatDuration } from "./utils/formatters";
@@ -243,10 +244,11 @@ async function monitorLive(): Promise<void> {
 }
 
 function syncLavalinkConfig(): void {
-  const projectRoot = import.meta.dir ? `${import.meta.dir}/..` : process.cwd();
-  const src = `${projectRoot}/application.yml`;
-  const dest = `${projectRoot}/lavalink-server/application.yml`;
-  if (existsSync(src) && existsSync(`${projectRoot}/lavalink-server`)) {
+  const projectRoot = import.meta.dir ? path.resolve(import.meta.dir, "..") : process.cwd();
+  const src = path.join(projectRoot, "application.yml");
+  const destDir = path.join(projectRoot, "lavalink-server");
+  const dest = path.join(destDir, "application.yml");
+  if (existsSync(src) && existsSync(destDir)) {
     try {
       copyFileSync(src, dest);
     } catch {}
@@ -322,7 +324,7 @@ async function main(): Promise<void> {
         console.log(yellow("Log viewing via journalctl is available on Ubuntu/Linux."));
       } else {
         console.log(`${blue("▶")} Viewing logs for ${bold(service)} (Ctrl+C to exit)...`);
-        Bun.spawn(["journalctl", "-u", service, "-f", "-n", "50"], {
+        Bun.spawn(["journalctl", "-u", service, "-f", "-n", "100"], {
           stdin: "inherit",
           stdout: "inherit",
           stderr: "inherit",

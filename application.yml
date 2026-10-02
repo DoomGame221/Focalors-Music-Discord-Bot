@@ -56,8 +56,9 @@ plugins:
       - ANDROID_VR
       - WEBEMBEDDED
       - WEB
-      - ANDROID
-      - TVHTML5EMBEDDED
+    oauth:
+      enabled: true
+      skipInitialization: false
   lavasrc:
     providers:
       - "ytsearch:\"%ISRC%\""
@@ -89,6 +90,7 @@ logging:
   level:
     root: INFO
     lavalink: INFO
+    dev.lavalink.youtube: INFO
   request:
     enabled: true
     includeClientInfo: true

@@ -79,86 +79,76 @@ export function buildControllerEmbed(player: Player, options?: ControllerOptions
 export function buildControllerComponents(player: Player): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
   const isPaused = player.paused;
 
-  // Row 1: Playback Controls
+  // Row 1: Playback Controls (Emojis only)
   const row1 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("ctrl_prev")
-      .setLabel("Previous")
       .setEmoji("⏮️")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_rewind")
-      .setLabel("-10s")
       .setEmoji("⏪")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_playpause")
-      .setLabel(isPaused ? "Resume" : "Pause")
       .setEmoji(isPaused ? "▶️" : "⏸️")
       .setStyle(isPaused ? ButtonStyle.Success : ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId("ctrl_forward")
-      .setLabel("+10s")
       .setEmoji("⏩")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_skip")
-      .setLabel("Skip")
       .setEmoji("⏭️")
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 2: Volume & Mode
+  // Row 2: Volume & Mode (Emojis only)
   const row2 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("ctrl_voldown")
-      .setLabel("Vol -")
       .setEmoji("🔉")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_volup")
-      .setLabel("Vol +")
       .setEmoji("🔊")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_loop")
-      .setLabel("Loop")
       .setEmoji("🔁")
       .setStyle(player.repeatMode !== "off" ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_shuffle")
-      .setLabel("Shuffle")
       .setEmoji("🔀")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_stop")
-      .setLabel("Stop")
       .setEmoji("⏹️")
       .setStyle(ButtonStyle.Danger)
   );
 
-  // Row 3: Menus & Utilities
+  // Row 3: Menus, Utilities & Leave (Emojis only)
   const row3 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("ctrl_queuelist")
-      .setLabel("Queue List")
       .setEmoji("📋")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_filters")
-      .setLabel("Filters")
       .setEmoji("🎛️")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_autoplay")
-      .setLabel("Autoplay")
       .setEmoji("♾️")
       .setStyle((player as any).get?.("autoplay") ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_saveplaylist")
-      .setLabel("Save Playlist")
       .setEmoji("💾")
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("ctrl_leave")
+      .setEmoji("🚪")
+      .setStyle(ButtonStyle.Danger)
   );
 
   return [row1, row2, row3];

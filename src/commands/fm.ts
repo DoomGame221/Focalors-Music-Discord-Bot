@@ -70,7 +70,11 @@ export const fmCommand = {
     )
     // /fm stop
     .addSubcommand((sub) =>
-      sub.setName("stop").setDescription("Stop playback, clear queue, and leave voice channel")
+      sub.setName("stop").setDescription("Stop playback and clear all queue/playlist (Stay in voice channel)")
+    )
+    // /fm leave
+    .addSubcommand((sub) =>
+      sub.setName("leave").setDescription("Disconnect the bot from the voice channel")
     )
     // /fm volume <level>
     .addSubcommand((sub) =>
@@ -256,6 +260,9 @@ export const fmCommand = {
       case "stop":
         await handleStop(interaction, client, player);
         break;
+      case "leave":
+        await handleLeave(interaction, client, player);
+        break;
       case "volume":
         await handleVolume(interaction, client, player);
         break;
@@ -297,6 +304,11 @@ async function handlePlay(
   const youtuMatch = cleanQuery.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
   if (youtuMatch && youtuMatch[1]) {
     cleanQuery = `https://www.youtube.com/watch?v=${youtuMatch[1]}`;
+  } else if (!cleanQuery.includes("list=")) {
+    const ytWatchMatch = cleanQuery.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/);
+    if (ytWatchMatch && ytWatchMatch[1]) {
+      cleanQuery = `https://www.youtube.com/watch?v=${ytWatchMatch[1]}`;
+    }
   }
 
   let player = client.lavalink.getPlayer(interaction.guildId!);
@@ -460,12 +472,27 @@ async function handlePrevious(interaction: ChatInputCommandInteraction, client: 
 
 async function handleStop(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
   if (!player) {
-    await interaction.reply({ content: "❌ No active player to stop!", ephemeral: true });
+    await interaction.reply({ content: "❌ ไม่มีเพลงที่กำลังเล่นอยู่!", ephemeral: true });
     return;
   }
-  await player.destroy("Command stop");
+  // Clear upcoming tracks in queue
+  player.queue.tracks.splice(0, player.queue.tracks.length);
+  // Turn off autoplay so it doesn't automatically queue more songs
+  (player as any).set?.("autoplay", false);
+  // Stop current track but stay in voice channel
+  await player.stopPlaying(true);
   controllerUpdater.clear(interaction.guildId!);
-  await interaction.reply({ content: "⏹️ Stopped playback, cleared queue, and disconnected." });
+  await interaction.reply({ content: "⏹️ หยุดเล่นเพลงและล้างคิวทั้งหมดแล้ว (บอทยังคงอยู่ในห้องเสียง)" });
+}
+
+async function handleLeave(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
+  if (!player) {
+    await interaction.reply({ content: "❌ บอทไม่ได้อยู่ในห้องเสียง!", ephemeral: true });
+    return;
+  }
+  await player.destroy("Command leave");
+  controllerUpdater.clear(interaction.guildId!);
+  await interaction.reply({ content: "🚪 ออกจากห้องเสียงเรียบร้อยแล้ว" });
 }
 
 async function handleVolume(interaction: ChatInputCommandInteraction, client: FocalorsClient, player: any): Promise<void> {
