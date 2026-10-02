@@ -54,11 +54,13 @@ plugins:
     clients:
       - MUSIC
       - ANDROID_VR
-      - WEBEMBEDDED
       - WEB
+      - WEBEMBEDDED
+      - TV
     oauth:
       enabled: true
-      skipInitialization: false
+      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
+      skipInitialization: true
   lavasrc:
     providers:
       - "ytsearch:\"%ISRC%\""
@@ -90,7 +92,7 @@ logging:
   level:
     root: INFO
     lavalink: INFO
-    dev.lavalink.youtube: INFO
+    dev.lavalink.youtube: DEBUG
     dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
   request:
     enabled: true

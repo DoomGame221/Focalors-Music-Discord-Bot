@@ -78,12 +78,18 @@ export function createLavalinkManager(client: Client): LavalinkManager {
     }
   });
 
-  manager.on("trackEnd", (player, track) => {
+  manager.on("trackEnd", (player, track, payload: any) => {
+    logger.info(`Track ended: "${track?.info?.title}" (reason: ${payload?.reason || "finished"}) in guild [${player.guildId}]`, "Player");
     controllerUpdater.requestUpdate(client, player);
   });
 
-  manager.on("trackError", (player, track, payload) => {
-    logger.error(`Track error playing "${track?.info?.title}" in guild [${player.guildId}]: ${JSON.stringify(payload.error || payload)}`, "Player");
+  manager.on("trackError", (player, track, payload: any) => {
+    const errorDetails = payload?.exception?.message || payload?.error || JSON.stringify(payload);
+    logger.error(`Track error playing "${track?.info?.title}" in guild [${player.guildId}]: ${errorDetails}`, "Player");
+  });
+
+  manager.on("trackStuck", (player, track, payload: any) => {
+    logger.warn(`Track stuck playing "${track?.info?.title}" in guild [${player.guildId}] threshold: ${payload?.thresholdMs}ms`, "Player");
   });
 
   manager.on("queueEnd", async (player) => {

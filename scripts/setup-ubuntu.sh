@@ -58,6 +58,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=$PROJECT_DIR/lavalink-server
+EnvironmentFile=$PROJECT_DIR/.env
 ExecStart=/usr/bin/java -Xmx2G -jar Lavalink.jar
 Restart=always
 RestartSec=5
