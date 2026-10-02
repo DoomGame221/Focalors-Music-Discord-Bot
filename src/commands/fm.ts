@@ -223,7 +223,10 @@ export const fmCommand = {
     // Music commands require voice channel
     if (!voiceChannel) {
       await interaction.reply({
-        content: "❌ You need to join a Voice Channel first to use Focalors Music!",
+        content:
+          "❌ ไม่พบห้องเสียงที่คุณอยู่! โปรดตรวจสอบว่า:\n" +
+          "1. คุณได้เชื่อมต่อเข้าห้องเสียง (Voice Channel) แล้วหรือไม่\n" +
+          "2. บอทมีสิทธิ์ **\"ดูแชนแนล (View Channel)\"** และ **\"เชื่อมต่อ (Connect)\"** ในห้องเสียงนั้นหรือไม่ (แนะนำให้ตั้งยศบอทเป็น 'ผู้ดูแล / Administrator')",
         ephemeral: true,
       });
       return;
