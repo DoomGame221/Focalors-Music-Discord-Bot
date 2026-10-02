@@ -60,7 +60,7 @@ plugins:
     oauth:
       enabled: true
       refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"
-      skipInitialization: true
+      skipInitialization: false
   lavasrc:
     providers:
       - "ytsearch:\"%ISRC%\""
