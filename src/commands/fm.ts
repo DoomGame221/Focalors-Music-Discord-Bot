@@ -14,6 +14,7 @@ import { playlistRepo } from "../database/playlistRepo";
 import { createActivityInvite, buildActivityComponent } from "../services/activityService";
 import { controllerUpdater } from "../services/updater";
 import { EQList } from "lavalink-client";
+import { getVoiceChannel } from "../utils/voice";
 
 export const fmCommand = {
   data: new SlashCommandBuilder()
@@ -184,9 +185,15 @@ export const fmCommand = {
 
   async execute(interaction: ChatInputCommandInteraction, client: FocalorsClient): Promise<void> {
     const subcommand = interaction.options.getSubcommand();
-    const member = interaction.member as GuildMember;
-    const guildId = interaction.guildId!;
-    const voiceChannel = member?.voice?.channel;
+    const guildId = interaction.guildId;
+
+    if (!guildId) {
+      await interaction.reply({
+        content: "❌ You can only use Focalors Music inside a server!",
+        ephemeral: true,
+      });
+      return;
+    }
 
     // Commands that don't strictly require voice channel: status, playlist list
     if (subcommand === "status") {
@@ -198,6 +205,8 @@ export const fmCommand = {
       await handlePlaylistList(interaction);
       return;
     }
+
+    const voiceChannel = await getVoiceChannel(interaction, client);
 
     if (subcommand === "video") {
       if (!voiceChannel) {
@@ -289,6 +298,13 @@ async function handlePlay(
       selfDeaf: true,
       volume: config.bot.defaultVolume,
     });
+  } else {
+    if (player.voiceChannelId !== voiceChannel.id) {
+      player.voiceChannelId = voiceChannel.id;
+    }
+    if (player.textChannelId !== interaction.channelId) {
+      player.textChannelId = interaction.channelId;
+    }
   }
 
   if (!player.connected) {

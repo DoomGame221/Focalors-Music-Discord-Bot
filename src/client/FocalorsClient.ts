@@ -21,6 +21,7 @@ import { playlistRepo } from "../database/playlistRepo";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { escapeMarkdown } from "../utils/formatters";
+import { getVoiceChannel } from "../utils/voice";
 
 export class FocalorsClient extends Client {
   public lavalink: LavalinkManager;
@@ -83,8 +84,7 @@ export class FocalorsClient extends Client {
   private async handleButtonInteraction(interaction: any): Promise<void> {
     const customId: string = interaction.customId;
     const guildId = interaction.guildId!;
-    const member = interaction.member as GuildMember;
-    const voiceChannel = member?.voice?.channel;
+    const voiceChannel = await getVoiceChannel(interaction, this);
 
     const player = this.lavalink.getPlayer(guildId);
 
