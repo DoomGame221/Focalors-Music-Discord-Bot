@@ -2,7 +2,8 @@
 set -e
 
 echo "=========================================================="
-echo "    Focalors Music Bot - Ubuntu Server Setup Script       "
+echo "    Focalors Music Bot - Ubuntu Native Setup Script       "
+echo "    Engine: @discordjs/voice + yt-dlp + ffmpeg (No Java)  "
 echo "=========================================================="
 
 # Check root or sudo
@@ -15,62 +16,38 @@ fi
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "Project Directory: $PROJECT_DIR"
 
-echo "[1/6] Updating apt packages and installing essentials..."
+echo "[1/6] Installing dependencies (ffmpeg, curl, git)..."
 apt-get update -y
-apt-get install -y curl unzip git ffmpeg openjdk-21-jre-headless build-essential
+apt-get install -y curl unzip git ffmpeg build-essential python3
 
-echo "[2/6] Installing Bun runtime..."
+echo "[2/6] Installing latest yt-dlp binary..."
+curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+chmod a+rx /usr/local/bin/yt-dlp
+yt-dlp --version
+
+echo "[3/6] Installing / Verifying Bun runtime..."
 if ! command -v bun &> /dev/null; then
     curl -fsSL https://bun.sh/install | bash
-    # Export bun to global bin
     cp /root/.bun/bin/bun /usr/local/bin/bun || true
 fi
-
-# Ensure bun is in PATH
 export PATH="/root/.bun/bin:/usr/local/bin:$PATH"
-
-echo "[3/6] Verifying installed runtimes..."
-java -version
 bun --version
-ffmpeg -version | head -n 1
 
-echo "[4/6] Installing bot node_modules via Bun..."
+echo "[4/6] Decommissioning old Lavalink service (if present)..."
+systemctl stop focalors-lavalink 2>/dev/null || true
+systemctl disable focalors-lavalink 2>/dev/null || true
+rm -f /etc/systemd/system/focalors-lavalink.service
+echo "✔ Lavalink service removed successfully."
+
+echo "[5/6] Installing bot node dependencies via Bun..."
 cd "$PROJECT_DIR"
 bun install
 
-echo "[5/6] Setting up Lavalink v4.jar..."
-mkdir -p "$PROJECT_DIR/lavalink-server"
-cd "$PROJECT_DIR/lavalink-server"
-if [ ! -f "Lavalink.jar" ]; then
-    echo "Downloading latest Lavalink v4..."
-    curl -Lo Lavalink.jar https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
-fi
-ln -sf "$PROJECT_DIR/application.yml" "$PROJECT_DIR/lavalink-server/application.yml"
-cd "$PROJECT_DIR"
-
-echo "[6/6] Creating Systemd Service files..."
-cat << EOF > /etc/systemd/system/focalors-lavalink.service
-[Unit]
-Description=Lavalink v4 Audio Server for Focalors Music
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$PROJECT_DIR/lavalink-server
-EnvironmentFile=$PROJECT_DIR/.env
-ExecStart=/usr/bin/java -Xmx2G -jar Lavalink.jar
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
+echo "[6/6] Configuring Systemd Service for focalors-bot..."
 cat << EOF > /etc/systemd/system/focalors-bot.service
 [Unit]
 Description=Focalors Music Discord Bot (Bun Runtime)
-After=network.target focalors-lavalink.service
+After=network.target
 
 [Service]
 Type=simple
@@ -86,8 +63,9 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+systemctl enable focalors-bot
 
-echo "[7/7] Setting up global focalors CLI command..."
+# Setting up global focalors CLI command
 chmod +x "$PROJECT_DIR/focalors"
 cat << EOF > /usr/local/bin/focalors
 #!/usr/bin/env bash
@@ -101,12 +79,10 @@ if [ -n "$SUDO_USER" ]; then
 fi
 
 echo "=========================================================="
-echo " Setup complete!"
-echo " Next steps:"
-echo " 1. Ensure your .env has DISCORD_TOKEN and DISCORD_CLIENT_ID"
-echo " 2. Register commands: focalors deploy"
-echo " 3. Start Lavalink:    focalors start lavalink"
-echo " 4. Start Bot:         focalors start bot"
-echo " Monitor everything:   focalors status  (or focalors monitor)"
-echo " View live logs:       focalors logs bot"
+echo " Setup complete! Native audio engine is ready."
+echo " Commands:"
+echo " 1. Register commands: focalors deploy"
+echo " 2. Restart bot:       focalors restart"
+echo " 3. Monitor status:    focalors status"
+echo " 4. View live logs:    focalors logs"
 echo "=========================================================="

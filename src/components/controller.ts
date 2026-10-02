@@ -5,7 +5,7 @@ import {
   ButtonStyle,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
-import type { Player } from "lavalink-client";
+import type { GuildPlayer } from "../player/GuildPlayer";
 import { config } from "../config";
 import { createProgressBar, escapeMarkdown, truncate } from "../utils/formatters";
 
@@ -17,7 +17,7 @@ export interface ControllerOptions {
 /**
  * Builds the modern, clean Focalors Music Controller Embed
  */
-export function buildControllerEmbed(player: Player, options?: ControllerOptions): EmbedBuilder {
+export function buildControllerEmbed(player: GuildPlayer, options?: ControllerOptions): EmbedBuilder {
   const current = player.queue.current;
   const nextTrack = player.queue.tracks[0];
   const position = player.position || 0;
@@ -76,7 +76,7 @@ export function buildControllerEmbed(player: Player, options?: ControllerOptions
 /**
  * Builds the 3 rows of clean, intuitive ActionRow buttons
  */
-export function buildControllerComponents(player: Player): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
+export function buildControllerComponents(player: GuildPlayer): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
   const isPaused = player.paused;
 
   // Row 1: Playback Controls (Emojis only)

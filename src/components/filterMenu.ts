@@ -5,10 +5,10 @@ import {
   StringSelectMenuOptionBuilder,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
-import type { Player } from "lavalink-client";
+import type { GuildPlayer } from "../player/GuildPlayer";
 import { config } from "../config";
 
-export function buildFilterMenu(player: Player): {
+export function buildFilterMenu(player: GuildPlayer): {
   embed: EmbedBuilder;
   components: ActionRowBuilder<MessageActionRowComponentBuilder>[];
 } {

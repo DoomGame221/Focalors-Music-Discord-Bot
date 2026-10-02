@@ -7,12 +7,6 @@ export interface BotConfig {
     token: string;
     clientId: string;
   };
-  lavalink: {
-    host: string;
-    port: number;
-    password: string;
-    secure: boolean;
-  };
   bot: {
     defaultVolume: number;
     defaultSearchPlatform: string;
@@ -25,12 +19,6 @@ export const config: BotConfig = {
   discord: {
     token: process.env.DISCORD_TOKEN || "",
     clientId: process.env.DISCORD_CLIENT_ID || "",
-  },
-  lavalink: {
-    host: process.env.LAVALINK_HOST || "localhost",
-    port: parseInt(process.env.LAVALINK_PORT || "2639", 10),
-    password: process.env.LAVALINK_PASSWORD || "halflife3isnotreal",
-    secure: process.env.LAVALINK_SECURE === "true",
   },
   bot: {
     defaultVolume: parseInt(process.env.DEFAULT_VOLUME || "100", 10),

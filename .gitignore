@@ -41,3 +41,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Lavalink runtime files
 Lavalink.jar
 plugins/
+lavalink-server/
+
+# Package locks and sensitive credentials
+package-lock.json
+cookies.txt

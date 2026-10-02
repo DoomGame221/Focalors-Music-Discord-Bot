@@ -1,5 +1,5 @@
 import type { Client, Message, TextChannel } from "discord.js";
-import type { Player } from "lavalink-client";
+import type { GuildPlayer } from "../player/GuildPlayer";
 import { buildControllerComponents, buildControllerEmbed } from "../components/controller";
 import { logger } from "../utils/logger";
 
@@ -59,7 +59,7 @@ export const controllerUpdater = {
   /**
    * Request a debounced update of the controller message
    */
-  requestUpdate(client: Client, player: Player): void {
+  requestUpdate(client: Client, player: GuildPlayer): void {
     const guildId = player.guildId;
     const state = controllers.get(guildId);
     if (!state) return;
@@ -83,7 +83,7 @@ export const controllerUpdater = {
   /**
    * Internal method to perform the Discord message edit
    */
-  async executeUpdate(client: Client, player: Player, state: ControllerState): Promise<void> {
+  async executeUpdate(client: Client, player: GuildPlayer, state: ControllerState): Promise<void> {
     state.lastUpdate = Date.now();
     state.timer = null;
 

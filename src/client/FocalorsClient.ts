@@ -11,8 +11,8 @@ import {
   ModalSubmitInteraction,
   EmbedBuilder,
 } from "discord.js";
-import type { LavalinkManager, Player } from "lavalink-client";
-import { createLavalinkManager } from "./LavalinkManager";
+import { PlayerManager } from "../player/PlayerManager";
+import { YtDlpService } from "../player/YtDlpService";
 import { fmCommand, applyFilterPreset } from "../commands/fm";
 import { buildQueueMenu } from "../components/queueMenu";
 import { buildFilterMenu } from "../components/filterMenu";
@@ -24,7 +24,12 @@ import { escapeMarkdown } from "../utils/formatters";
 import { getVoiceChannel } from "../utils/voice";
 
 export class FocalorsClient extends Client {
-  public lavalink: LavalinkManager;
+  public playerManager: PlayerManager;
+
+  // Compatibility getter so existing code calling client.lavalink continues to work
+  public get lavalink(): PlayerManager {
+    return this.playerManager;
+  }
 
   constructor() {
     super({
@@ -35,10 +40,8 @@ export class FocalorsClient extends Client {
       ],
     });
 
-    this.lavalink = createLavalinkManager(this);
-
-    // Forward raw Discord events to Lavalink (required for voice state updates)
-    this.on("raw", (d) => this.lavalink.sendRawData(d));
+    this.playerManager = new PlayerManager(this);
+    YtDlpService.init(process.cwd());
 
     // Handle interactions (Slash commands, buttons, dropdowns, modals)
     this.on("interactionCreate", this.handleInteraction.bind(this));
@@ -46,12 +49,7 @@ export class FocalorsClient extends Client {
 
   public async start(): Promise<void> {
     this.once("ready", async () => {
-      logger.focalors(`Focalors Music Bot is online as [${this.user?.tag}]!`);
-      // Initialize Lavalink with bot user credentials
-      await this.lavalink.init({
-        id: this.user!.id,
-        username: this.user!.username,
-      });
+      logger.focalors(`Focalors Music Bot is online as [${this.user?.tag}]! (Native Audio Engine)`);
     });
 
     await this.login(config.discord.token);

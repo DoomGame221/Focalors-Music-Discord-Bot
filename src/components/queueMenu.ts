@@ -7,7 +7,7 @@ import {
   ButtonStyle,
   type MessageActionRowComponentBuilder,
 } from "discord.js";
-import type { Player } from "lavalink-client";
+import type { GuildPlayer } from "../player/GuildPlayer";
 import { config } from "../config";
 import { formatDuration, escapeMarkdown, truncate } from "../utils/formatters";
 
@@ -21,7 +21,7 @@ export interface QueueDisplay {
 /**
  * Builds the interactive paginated Queue list with a Select Menu to jump directly to any track
  */
-export function buildQueueMenu(player: Player, page: number = 1): QueueDisplay {
+export function buildQueueMenu(player: GuildPlayer, page: number = 1): QueueDisplay {
   const current = player.queue.current;
   const tracks = player.queue.tracks;
   const totalTracks = tracks.length;

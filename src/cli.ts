@@ -1,8 +1,7 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config";
 import { getDatabase } from "./database/sqlite";
-import { formatDuration } from "./utils/formatters";
 import {
   blue,
   green,
@@ -17,75 +16,38 @@ import {
 const BANNER = `
 ${blue("╔═══════════════════════════════════════════════════════════════╗")}
 ${blue("║")}   💧 ${bold(cyan("FOCALORS MUSIC BOT — Server Administration & CLI"))}      ${blue("║")}
+${blue("║")}   🎶 ${bold(magenta("Native Engine: @discordjs/voice + yt-dlp + ffmpeg"))}      ${blue("║")}
 ${blue("╚═══════════════════════════════════════════════════════════════╝")}
 `;
 
-interface LavalinkStats {
-  players: number;
-  playingPlayers: number;
-  uptime: number;
-  memory: {
-    free: number;
-    used: number;
-    allocated: number;
-    reservable: number;
-  };
-  cpu: {
-    cores: number;
-    systemLoad: number;
-    lavalinkLoad: number;
-  };
-}
-
-interface LavalinkInfo {
-  version: {
-    semver: string;
-    major: number;
-    minor: number;
-    patch: number;
-  };
-  jvm: string;
-  lavaplayer: string;
-  plugins: Array<{ name: string; version: string }>;
-}
-
-async function checkLavalinkRest(): Promise<{
-  online: boolean;
-  info?: LavalinkInfo;
-  stats?: LavalinkStats;
-  error?: string;
-}> {
-  const protocol = config.lavalink.secure ? "https" : "http";
-  const baseUrl = `${protocol}://${config.lavalink.host}:${config.lavalink.port}`;
-
+async function checkToolVersion(cmd: string, args: string[]): Promise<string> {
   try {
-    const infoRes = await fetch(`${baseUrl}/v4/info`, {
-      headers: { Authorization: config.lavalink.password },
-      signal: AbortSignal.timeout(2500),
+    const proc = Bun.spawn([cmd, ...args], {
+      stdout: "pipe",
+      stderr: "pipe",
     });
-
-    if (!infoRes.ok) {
-      return { online: false, error: `HTTP ${infoRes.status} ${infoRes.statusText}` };
+    const output = (await new Response(proc.stdout).text()).trim();
+    if (output) {
+      const firstLine = output.split("\n")[0] || "";
+      return green(firstLine.slice(0, 45));
     }
-
-    const info = (await infoRes.json()) as LavalinkInfo;
-
-    const statsRes = await fetch(`${baseUrl}/v4/stats`, {
-      headers: { Authorization: config.lavalink.password },
-      signal: AbortSignal.timeout(2500),
-    });
-
-    const stats = statsRes.ok ? ((await statsRes.json()) as LavalinkStats) : undefined;
-
-    return { online: true, info, stats };
-  } catch (err: any) {
-    return { online: false, error: err?.message || "Connection refused" };
+    return green("Installed");
+  } catch {
+    return red("Not installed / Not found in PATH");
   }
+}
+
+function checkCookies(): string {
+  const projectRoot = import.meta.dir ? path.resolve(import.meta.dir, "..") : process.cwd();
+  const cookiesPath = path.join(projectRoot, "cookies.txt");
+  if (existsSync(cookiesPath)) {
+    return green("● Present (cookies.txt active)");
+  }
+  return yellow("○ None (cookies.txt not present)");
 }
 
 async function checkServiceStatus(serviceName: string): Promise<string> {
   if (process.platform === "win32") {
-    // Windows check
     return gray("N/A (Windows dev mode)");
   }
 
@@ -124,41 +86,20 @@ async function runSystemctl(action: string, serviceName: string): Promise<void> 
 async function showStatus(): Promise<void> {
   console.log(BANNER);
   console.log(bold("📊 System & Services Overview:"));
-  console.log("─".repeat(50));
+  console.log("─".repeat(55));
 
   // Service Status
   const botService = await checkServiceStatus("focalors-bot");
-  const lavaService = await checkServiceStatus("focalors-lavalink");
   console.log(`• ${bold("Bot Service (focalors-bot):")}         ${botService}`);
-  console.log(`• ${bold("Lavalink Service (focalors-lavalink):")} ${lavaService}`);
   console.log("");
 
-  // Lavalink Node Details
-  console.log(bold("🔊 Lavalink v4 Audio Engine Status:"));
-  console.log(`• Node Address:   ${cyan(`${config.lavalink.host}:${config.lavalink.port}`)}`);
-  
-  const lava = await checkLavalinkRest();
-  if (lava.online && lava.info) {
-    console.log(`• Status:         ${green("● Online & Reachable")}`);
-    console.log(`• Version:        ${cyan(`Lavalink v${lava.info.version.semver}`)} (JVM: ${lava.info.jvm})`);
-    
-    if (lava.info.plugins.length > 0) {
-      const pluginNames = lava.info.plugins.map((p) => `${p.name} (${p.version})`).join(", ");
-      console.log(`• Loaded Plugins: ${yellow(pluginNames)}`);
-    }
-
-    if (lava.stats) {
-      const memUsedMb = (lava.stats.memory.used / 1024 / 1024).toFixed(1);
-      const memAllocMb = (lava.stats.memory.allocated / 1024 / 1024).toFixed(1);
-      console.log(`• Uptime:         ${cyan(formatDuration(lava.stats.uptime))}`);
-      console.log(`• Memory Usage:   ${cyan(`${memUsedMb} MB / ${memAllocMb} MB`)}`);
-      console.log(`• CPU Load:       Lavalink: ${cyan(`${(lava.stats.cpu.lavalinkLoad * 100).toFixed(1)}%`)} | System: ${cyan(`${(lava.stats.cpu.systemLoad * 100).toFixed(1)}%`)} (${lava.stats.cpu.cores} Cores)`);
-      console.log(`• Audio Players:  ${green(lava.stats.playingPlayers.toString())} playing / ${cyan(lava.stats.players.toString())} active`);
-    }
-  } else {
-    console.log(`• Status:         ${red("✖ Offline / Unreachable")}`);
-    console.log(`• Error Detail:   ${red(lava.error || "Unknown error")}`);
-  }
+  // Media Tooling Status
+  console.log(bold("🎵 Audio & Streaming Engine:"));
+  const ytDlpVer = await checkToolVersion("yt-dlp", ["--version"]);
+  const ffmpegVer = await checkToolVersion("ffmpeg", ["-version"]);
+  console.log(`• yt-dlp:         ${ytDlpVer}`);
+  console.log(`• ffmpeg:         ${ffmpegVer}`);
+  console.log(`• YouTube Cookie: ${checkCookies()}`);
   console.log("");
 
   // SQLite Database Status
@@ -173,7 +114,7 @@ async function showStatus(): Promise<void> {
   } catch (err: any) {
     console.log(`• Database:       ${red(`Error reading database: ${err?.message || err}`)}`);
   }
-  console.log("─".repeat(50));
+  console.log("─".repeat(55));
 }
 
 async function showDbList(): Promise<void> {
@@ -215,99 +156,27 @@ async function monitorLive(): Promise<void> {
   console.log(yellow("Live Monitor Mode — Press Ctrl+C to exit. Refreshing every 2 seconds...\n"));
 
   const refresh = async () => {
-    // Move cursor to home
     process.stdout.write("\x1B[H");
     console.log(BANNER);
     console.log(`${gray("Timestamp:")} ${cyan(new Date().toLocaleTimeString())}  (Press Ctrl+C to exit)\n`);
 
-    const lava = await checkLavalinkRest();
-    console.log(bold("🔊 Lavalink v4 Audio Engine:"));
-    if (lava.online && lava.stats) {
-      console.log(`• Status:         ${green("● ONLINE")} (${config.lavalink.host}:${config.lavalink.port})`);
-      console.log(`• Playing Tracks: ${green(lava.stats.playingPlayers.toString())} active / ${cyan(lava.stats.players.toString())} connected`);
-      console.log(`• Lavalink Load:  ${cyan(`${(lava.stats.cpu.lavalinkLoad * 100).toFixed(1)}%`)} (System: ${(lava.stats.cpu.systemLoad * 100).toFixed(1)}%)`);
-      console.log(`• Memory Used:    ${cyan(`${(lava.stats.memory.used / 1024 / 1024).toFixed(1)} MB`)} / ${(lava.stats.memory.allocated / 1024 / 1024).toFixed(1)} MB`);
-      console.log(`• Uptime:         ${cyan(formatDuration(lava.stats.uptime))}`);
-    } else {
-      console.log(`• Status:         ${red("✖ OFFLINE")} (${lava.error})`);
-    }
-
-    console.log("\n" + bold("⚙️ Services:"));
     const botService = await checkServiceStatus("focalors-bot");
-    const lavaService = await checkServiceStatus("focalors-lavalink");
+    console.log(bold("⚙️ Service:"));
     console.log(`• focalors-bot:      ${botService}`);
-    console.log(`• focalors-lavalink: ${lavaService}`);
+    console.log(`• YouTube Cookie:   ${checkCookies()}`);
+
+    try {
+      const db = getDatabase();
+      const playlistCount = db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM playlists").get();
+      const trackCount = db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM playlist_tracks").get();
+      console.log("\n" + bold("💾 SQLite Storage:"));
+      console.log(`• Playlists:        ${green(playlistCount?.count.toString() || "0")} saved`);
+      console.log(`• Cached Tracks:    ${green(trackCount?.count.toString() || "0")} tracks`);
+    } catch {}
   };
 
   await refresh();
   setInterval(refresh, 2000);
-}
-
-function syncLavalinkConfig(): void {
-  const projectRoot = import.meta.dir ? path.resolve(import.meta.dir, "..") : process.cwd();
-  const src = path.join(projectRoot, "application.yml");
-  const destDir = path.join(projectRoot, "lavalink-server");
-  const dest = path.join(destDir, "application.yml");
-  if (existsSync(src) && existsSync(destDir)) {
-    try {
-      let content = readFileSync(src, "utf-8");
-
-      // Resolve token with multiple fallbacks
-      let token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
-
-      // Fallback 1: Read directly from project .env
-      if (!token) {
-        const envPath = path.join(projectRoot, ".env");
-        if (existsSync(envPath)) {
-          const envContent = readFileSync(envPath, "utf-8");
-          const match = envContent.match(/YOUTUBE_OAUTH_REFRESH_TOKEN\s*=\s*["']?(1\/\/[^"'\s\n\r]+)/);
-          if (match?.[1]) token = match[1];
-        }
-      }
-
-      // Fallback 2: Read from ~/.env (if created in user home)
-      if (!token && process.env.HOME) {
-        const homeEnv = path.join(process.env.HOME, ".env");
-        if (existsSync(homeEnv)) {
-          const envContent = readFileSync(homeEnv, "utf-8");
-          const match = envContent.match(/YOUTUBE_OAUTH_REFRESH_TOKEN\s*=\s*["']?(1\/\/[^"'\s\n\r]+)/);
-          if (match?.[1]) token = match[1];
-        }
-      }
-
-      // Fallback 3: Preserve existing token in dest if present
-      if (!token && existsSync(dest)) {
-        try {
-          const destContent = readFileSync(dest, "utf-8");
-          const match = destContent.match(/refreshToken:\s*["']?(1\/\/[^"'\s\n\r]+)/);
-          if (match?.[1]) token = match[1];
-        } catch {}
-      }
-
-      if (token) {
-        content = content.replace("${YOUTUBE_OAUTH_REFRESH_TOKEN:}", token);
-      }
-
-      try {
-        writeFileSync(dest, content, "utf-8");
-        console.log(
-          green(`✔ Synced application.yml to lavalink-server ${token ? "(with OAuth token)" : "(without OAuth token)"}`)
-        );
-      } catch {
-        if (process.platform !== "win32") {
-          const tempFile = path.join(projectRoot, ".temp_app_config.yml");
-          writeFileSync(tempFile, content, "utf-8");
-          Bun.spawnSync(["sudo", "cp", "-f", tempFile, dest]);
-          Bun.spawnSync(["rm", "-f", tempFile]);
-          console.log(
-            green(`✔ Synced application.yml to lavalink-server via sudo ${token ? "(with OAuth token)" : "(without OAuth token)"}`)
-          );
-        }
-      }
-    } catch (err: any) {
-      console.log(yellow(`[Warning] Could not sync application.yml: ${err?.message || err}`));
-    }
-  }
 }
 
 function showHelp(): void {
@@ -317,12 +186,12 @@ function showHelp(): void {
   console.log("  or ./focalors <command> [options]");
   console.log("");
   console.log(bold("Available Commands:"));
-  console.log(`  ${cyan("status")}              View comprehensive health and status of bot, Lavalink & DB`);
+  console.log(`  ${cyan("status")}              View health and status of bot, yt-dlp, ffmpeg & DB`);
   console.log(`  ${cyan("monitor")}             Launch live auto-refreshing terminal dashboard`);
-  console.log(`  ${cyan("start [target]")}       Start service (${gray("bot")}, ${gray("lavalink")}, or ${gray("all")})`);
-  console.log(`  ${cyan("stop [target]")}        Stop service (${gray("bot")}, ${gray("lavalink")}, or ${gray("all")})`);
-  console.log(`  ${cyan("restart [target]")}     Restart service (${gray("bot")}, ${gray("lavalink")}, or ${gray("all")})`);
-  console.log(`  ${cyan("logs [target]")}        View live logs (${gray("bot")} or ${gray("lavalink")})`);
+  console.log(`  ${cyan("start")}               Start focalors-bot service`);
+  console.log(`  ${cyan("stop")}                Stop focalors-bot service`);
+  console.log(`  ${cyan("restart")}             Restart focalors-bot service`);
+  console.log(`  ${cyan("logs")}                View live logs of focalors-bot`);
   console.log(`  ${cyan("db list")}             List all server-side saved playlists`);
   console.log(`  ${cyan("deploy")}              Deploy and register Discord Slash Commands (/fm)`);
   console.log(`  ${cyan("help")}                Show this help message`);
@@ -332,7 +201,7 @@ function showHelp(): void {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0]?.toLowerCase() || "status";
-  const target = args[1]?.toLowerCase() || "all";
+  const target = args[1]?.toLowerCase() || "bot";
 
   switch (command) {
     case "status":
@@ -345,41 +214,23 @@ async function main(): Promise<void> {
       break;
 
     case "start":
-      if (target === "all" || target === "lavalink") {
-        syncLavalinkConfig();
-        await runSystemctl("start", "focalors-lavalink");
-      }
-      if (target === "all" || target === "bot") {
-        await runSystemctl("start", "focalors-bot");
-      }
+      await runSystemctl("start", "focalors-bot");
       break;
 
     case "stop":
-      if (target === "all" || target === "bot") {
-        await runSystemctl("stop", "focalors-bot");
-      }
-      if (target === "all" || target === "lavalink") {
-        await runSystemctl("stop", "focalors-lavalink");
-      }
+      await runSystemctl("stop", "focalors-bot");
       break;
 
     case "restart":
-      if (target === "all" || target === "lavalink") {
-        syncLavalinkConfig();
-        await runSystemctl("restart", "focalors-lavalink");
-      }
-      if (target === "all" || target === "bot") {
-        await runSystemctl("restart", "focalors-bot");
-      }
+      await runSystemctl("restart", "focalors-bot");
       break;
 
     case "logs": {
-      const service = target === "lavalink" ? "focalors-lavalink" : "focalors-bot";
       if (process.platform === "win32") {
         console.log(yellow("Log viewing via journalctl is available on Ubuntu/Linux."));
       } else {
-        console.log(`${blue("▶")} Viewing logs for ${bold(service)} (Ctrl+C to exit)...`);
-        Bun.spawn(["journalctl", "-u", service, "-f", "-n", "100"], {
+        console.log(`${blue("▶")} Viewing logs for ${bold("focalors-bot")} (Ctrl+C to exit)...`);
+        Bun.spawn(["journalctl", "-u", "focalors-bot", "-f", "-n", "100"], {
           stdin: "inherit",
           stdout: "inherit",
           stderr: "inherit",

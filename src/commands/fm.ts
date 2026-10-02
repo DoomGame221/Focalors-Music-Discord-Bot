@@ -13,7 +13,7 @@ import { buildFilterMenu } from "../components/filterMenu";
 import { playlistRepo } from "../database/playlistRepo";
 import { createActivityInvite, buildActivityComponent } from "../services/activityService";
 import { controllerUpdater } from "../services/updater";
-import { EQList } from "lavalink-client";
+import { YtDlpService } from "../player/YtDlpService";
 import { getVoiceChannel } from "../utils/voice";
 
 export const fmCommand = {
@@ -311,45 +311,31 @@ async function handlePlay(
     }
   }
 
-  let player = client.lavalink.getPlayer(interaction.guildId!);
+  let player = client.playerManager.getPlayer(interaction.guildId!);
   if (!player) {
-    player = client.lavalink.createPlayer({
-      guildId: interaction.guildId!,
-      voiceChannelId: voiceChannel.id,
-      textChannelId: interaction.channelId,
-      selfDeaf: true,
-      volume: config.bot.defaultVolume,
-    });
+    player = client.playerManager.createPlayer(interaction.guildId!, interaction.channelId);
   } else {
-    if (player.voiceChannelId !== voiceChannel.id) {
-      player.voiceChannelId = voiceChannel.id;
-    }
-    if (player.textChannelId !== interaction.channelId) {
-      player.textChannelId = interaction.channelId;
-    }
+    player.textChannelId = interaction.channelId;
   }
 
   if (!player.connected) {
-    await player.connect();
+    await player.connect(voiceChannel, interaction.channelId);
   }
 
-  const isUrl = /^https?:\/\//i.test(cleanQuery);
-  const searchPayload = isUrl
-    ? cleanQuery
-    : { query: cleanQuery, source: config.bot.defaultSearchPlatform as any };
-
-  const res = await player.search(searchPayload, interaction.user);
+  const res = await YtDlpService.resolve(cleanQuery, {
+    id: interaction.user.id,
+    tag: interaction.user.tag,
+  });
 
   if (!res || !res.tracks.length) {
-    const errorMsg = res?.exception?.message ? `\n*(Lavalink Error: ${res.exception.message})*` : "";
     await interaction.editReply({
-      content: `❌ No results found for: \`${escapeMarkdown(cleanQuery)}\`${errorMsg}`,
+      content: `❌ No results found for: \`${escapeMarkdown(cleanQuery)}\`\n*(Please ensure query or link is valid)*`,
     });
     return;
   }
 
   if (res.loadType === "playlist") {
-    await player.queue.add(res.tracks);
+    player.queue.add(res.tracks);
     const totalDuration = res.tracks.reduce((acc, t) => acc + (t.info.duration || 0), 0);
     await interaction.editReply({
       embeds: [
@@ -357,14 +343,14 @@ async function handlePlay(
           .setColor(config.bot.embedColor)
           .setTitle("📑 Added Playlist to Queue")
           .setDescription(
-            `Added **${res.tracks.length}** tracks from [${escapeMarkdown(res.playlist?.title || cleanQuery)}](${cleanQuery})\nTotal Duration: \`${formatDuration(totalDuration)}\``
+            `Added **${res.tracks.length}** tracks from **${escapeMarkdown(res.playlistName || cleanQuery)}**\nTotal Duration: \`${formatDuration(totalDuration)}\``
           ),
       ],
     });
   } else {
     const track = res.tracks[0];
     if (!track) return;
-    await player.queue.add(track);
+    player.queue.add(track);
 
     if (player.playing) {
       await interaction.editReply({
@@ -568,43 +554,8 @@ async function handleFilter(interaction: ChatInputCommandInteraction, client: Fo
 }
 
 export async function applyFilterPreset(player: any, preset: string): Promise<void> {
-  if (!player?.filterManager) return;
-
-  switch (preset) {
-    case "reset":
-    case "filter_reset":
-      await player.filterManager.resetFilters();
-      break;
-    case "bassboost_high":
-    case "filter_bassboost_high":
-      await player.filterManager.resetFilters();
-      await player.filterManager.setEQ(EQList.BassboostHigh);
-      break;
-    case "bassboost_med":
-    case "filter_bassboost_med":
-      await player.filterManager.resetFilters();
-      await player.filterManager.setEQ(EQList.BassboostMedium);
-      break;
-    case "nightcore":
-    case "filter_nightcore":
-      await player.filterManager.resetFilters();
-      await player.filterManager.toggleNightcore();
-      break;
-    case "vaporwave":
-    case "filter_vaporwave":
-      await player.filterManager.resetFilters();
-      await player.filterManager.toggleVaporwave();
-      break;
-    case "8d":
-    case "filter_8d":
-      await player.filterManager.resetFilters();
-      await player.filterManager.toggleRotation();
-      break;
-    case "pop":
-    case "filter_pop":
-      await player.filterManager.resetFilters();
-      await player.filterManager.setEQ(EQList.Pop);
-      break;
+  if (player?.setFilter) {
+    await player.setFilter(preset);
   }
 }
 
@@ -673,28 +624,31 @@ async function handlePlaylist(
 
     await interaction.deferReply();
 
-    let targetPlayer = client.lavalink.getPlayer(guildId);
+    let targetPlayer = client.playerManager.getPlayer(guildId);
     if (!targetPlayer) {
-      targetPlayer = client.lavalink.createPlayer({
-        guildId,
-        voiceChannelId: voiceChannel.id,
-        textChannelId: interaction.channelId,
-        selfDeaf: true,
-        volume: config.bot.defaultVolume,
-      });
+      targetPlayer = client.playerManager.createPlayer(guildId, interaction.channelId);
+    } else {
+      targetPlayer.textChannelId = interaction.channelId;
     }
 
     if (!targetPlayer.connected) {
-      await targetPlayer.connect();
+      await targetPlayer.connect(voiceChannel, interaction.channelId);
     }
 
     let loadedCount = 0;
     for (const t of pl.tracks) {
-      const res = await targetPlayer.search({ query: t.uri }, interaction.user);
-      if (res?.tracks?.[0]) {
-        await targetPlayer.queue.add(res.tracks[0]);
-        loadedCount++;
-      }
+      targetPlayer.queue.add({
+        info: {
+          identifier: t.uri,
+          title: t.title,
+          author: t.author || "Unknown Artist",
+          uri: t.uri,
+          duration: t.duration || 0,
+          artworkUrl: t.thumbnail || undefined,
+        },
+        requester: { id: interaction.user.id, tag: interaction.user.tag },
+      });
+      loadedCount++;
     }
 
     if (!targetPlayer.playing) {
@@ -778,9 +732,6 @@ async function handleStatus(
   const memory = process.memoryUsage();
   const uptimeSeconds = Math.floor(process.uptime());
 
-  const node = client.lavalink.nodeManager.nodes.values().next().value;
-  const nodeStats = node?.stats;
-
   const embed = new EmbedBuilder()
     .setColor(config.bot.embedColor)
     .setTitle("⚡ Focalors Music — System & Performance Status")
@@ -789,22 +740,17 @@ async function handleStatus(
       { name: "⏱️ Bot Uptime", value: `\`${formatDuration(uptimeSeconds * 1000)}\``, inline: true },
       { name: "⚡ Bun Memory (RSS)", value: `\`${(memory.rss / 1024 / 1024).toFixed(2)} MB\``, inline: true },
       {
-        name: "🔊 Lavalink Node",
-        value: node?.connected ? `🟢 Connected (${node.options.host})` : "🔴 Disconnected",
-        inline: true,
-      },
-      {
-        name: "📊 Node CPU",
-        value: nodeStats ? `Cores: ${nodeStats.cpu.cores} | Load: ${(nodeStats.cpu.lavalinkLoad * 100).toFixed(1)}%` : "N/A",
+        name: "🔊 Audio Engine",
+        value: "🟢 Native (@discordjs/voice + yt-dlp)",
         inline: true,
       },
       {
         name: "🎶 Active Players",
-        value: `\`${client.lavalink.players.size} players\``,
+        value: `\`${client.playerManager.players.size} players\``,
         inline: true,
       },
     ])
-    .setFooter({ text: "Running on Bun Runtime + Lavalink v4 (High Performance)" });
+    .setFooter({ text: "Running on Bun Runtime + @discordjs/voice + yt-dlp (Native High Performance)" });
 
   await interaction.reply({ embeds: [embed] });
 }
