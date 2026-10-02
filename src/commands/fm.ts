@@ -10,6 +10,7 @@ import { formatDuration, escapeMarkdown, truncate } from "../utils/formatters";
 import { buildControllerComponents, buildControllerEmbed } from "../components/controller";
 import { buildQueueMenu } from "../components/queueMenu";
 import { buildFilterMenu } from "../components/filterMenu";
+import { buildVolumeMenu } from "../components/volumeMenu";
 import { playlistRepo } from "../database/playlistRepo";
 import { createActivityInvite, buildActivityComponent } from "../services/activityService";
 import { controllerUpdater } from "../services/updater";
@@ -76,18 +77,18 @@ export const fmCommand = {
     .addSubcommand((sub) =>
       sub.setName("leave").setDescription("Disconnect the bot from the voice channel")
     )
-    // /fm volume <level>
+    // /fm volume [level]
     .addSubcommand((sub) =>
       sub
         .setName("volume")
-        .setDescription("Set playback volume (1-150%)")
+        .setDescription("Set playback volume or open interactive volume slider")
         .addIntegerOption((opt) =>
           opt
             .setName("level")
-            .setDescription("Volume level percentage")
+            .setDescription("Volume level percentage (1-150%)")
             .setMinValue(1)
             .setMaxValue(150)
-            .setRequired(true)
+            .setRequired(false)
         )
     )
     // /fm nowplaying
@@ -169,6 +170,7 @@ export const fmCommand = {
           opt
             .setName("name")
             .setDescription("Playlist name (required for save/load/delete)")
+            .setAutocomplete(true)
         )
     )
     // /fm video [url]
@@ -488,10 +490,19 @@ async function handleVolume(interaction: ChatInputCommandInteraction, client: Fo
     await interaction.reply({ content: "❌ No active player found!", ephemeral: true });
     return;
   }
-  const level = interaction.options.getInteger("level", true);
-  await player.setVolume(level);
-  controllerUpdater.requestUpdate(client, player);
-  await interaction.reply({ content: `🔊 Volume set to **${level}%**`, ephemeral: true });
+  const level = interaction.options.getInteger("level");
+  if (level !== null && level !== undefined) {
+    await player.setVolume(level);
+    controllerUpdater.requestUpdate(client, player);
+    await interaction.reply({ content: `🔊 ปรับระดับเสียงเป็น **${level}%** เรียบร้อยแล้ว!`, ephemeral: true });
+  } else {
+    const menu = buildVolumeMenu(player);
+    await interaction.reply({
+      embeds: [menu.embed],
+      components: menu.components,
+      ephemeral: true,
+    });
+  }
 }
 
 async function handleNowPlaying(interaction: ChatInputCommandInteraction, player: any): Promise<void> {
@@ -603,13 +614,22 @@ async function handlePlaylist(
     }
 
     const saved = playlistRepo.savePlaylist(userId, guildId, name, allTracks);
+    const userPlaylists = playlistRepo.getUserPlaylists(userId);
+    const plList = userPlaylists
+      .map((p, i) => `\`${(i + 1).toString().padStart(2, "0")}.\` **${escapeMarkdown(p.name)}** (${p.track_count} เพลง)`)
+      .join("\n");
+
     await interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(config.bot.embedColor)
-          .setTitle("💾 Playlist Saved to Ubuntu Server")
-          .setDescription(`Successfully saved playlist **${escapeMarkdown(name)}** with **${saved.trackCount}** tracks!`)
-          .setFooter({ text: `Stored in ${config.bot.databasePath} (Bun Native SQLite)` }),
+          .setTitle("💾 บันทึกเพลย์ลิสต์เรียบร้อยแล้ว")
+          .setDescription(
+            `บันทึกเพลย์ลิสต์ **"${escapeMarkdown(name)}"** จำนวน **${saved.trackCount}** เพลงเรียบร้อยแล้ว!\n\n` +
+            `📂 **รายชื่อเพลย์ลิสต์ทั้งหมดของคุณ:**\n${plList}\n\n` +
+            `💡 *วิธีเปิดฟัง: ใช้คำสั่ง \`/fm playlist load ${name}\`*`
+          )
+          .setFooter({ text: `Stored in SQLite | Focalors Database` }),
       ],
     });
   } else if (action === "load") {

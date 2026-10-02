@@ -189,6 +189,7 @@ export class GuildPlayer extends EventEmitter {
       nextTrack = this.queue.tracks.shift()!;
     }
 
+    this.stopIdleTimer();
     this.queue.current = nextTrack;
     this.positionMs = 0;
     this.startPositionTimer();
@@ -308,8 +309,27 @@ export class GuildPlayer extends EventEmitter {
     this.audioPlayer.stop();
   }
 
+  public idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  public startIdleTimer(ms: number = 300000, onTimeout?: () => void): void {
+    this.stopIdleTimer();
+    this.idleTimer = setTimeout(() => {
+      logger.info(`5-minute idle timeout reached in guild [${this.guildId}]. Leaving voice channel.`, "Player");
+      if (onTimeout) onTimeout();
+      this.destroy("5-minute idle timeout");
+    }, ms);
+  }
+
+  public stopIdleTimer(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
   public destroy(reason?: string): void {
     logger.info(`Destroying player for guild [${this.guildId}]: ${reason || "manual"}`, "Player");
+    this.stopIdleTimer();
     this.stopPlaying(true);
     if (this.voiceConnection) {
       try {

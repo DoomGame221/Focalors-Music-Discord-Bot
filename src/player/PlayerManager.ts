@@ -1,17 +1,42 @@
-import type { Client, TextChannel } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  type Client,
+  type MessageActionRowComponentBuilder,
+  type TextChannel,
+} from "discord.js";
 import { GuildPlayer } from "./GuildPlayer";
 import { YtDlpService } from "./YtDlpService";
 import { buildControllerComponents, buildControllerEmbed } from "../components/controller";
 import { controllerUpdater } from "../services/updater";
+import { config } from "../config";
 import { logger } from "../utils/logger";
 import type { Track } from "./types";
 
 export class PlayerManager {
   private client: Client;
   public players: Map<string, GuildPlayer> = new Map();
+  private updateTicker: ReturnType<typeof setInterval> | null = null;
 
   constructor(client: Client) {
     this.client = client;
+    this.startGlobalUpdateTicker();
+  }
+
+  /**
+   * Periodically updates playback progress every 4s for active playing players
+   */
+  private startGlobalUpdateTicker(): void {
+    if (this.updateTicker) clearInterval(this.updateTicker);
+    this.updateTicker = setInterval(() => {
+      for (const [_, player] of this.players) {
+        if (player.playing && player.queue.current) {
+          controllerUpdater.requestUpdate(this.client, player);
+        }
+      }
+    }, 4000);
   }
 
   public getPlayer(guildId: string): GuildPlayer | undefined {
@@ -50,10 +75,10 @@ export class PlayerManager {
         const channel = (await this.client.channels.fetch(channelId).catch(() => null)) as TextChannel | null;
         if (!channel || !channel.isTextBased()) return;
 
-        const embed = buildControllerEmbed(p as any, {
+        const embed = buildControllerEmbed(p, {
           voiceChannelId: p.voiceChannelId || undefined,
         });
-        const components = buildControllerComponents(p as any);
+        const components = buildControllerComponents(p);
 
         await controllerUpdater.deleteOldController(this.client, p.guildId);
 
@@ -70,7 +95,7 @@ export class PlayerManager {
 
     player.on("trackEnd", (p: GuildPlayer, track: Track) => {
       logger.info(`Track ended: "${track?.info?.title}" in guild [${p.guildId}]`, "Player");
-      controllerUpdater.requestUpdate(this.client, p as any);
+      controllerUpdater.requestUpdate(this.client, p);
     });
 
     player.on("trackError", async (p: GuildPlayer, track: Track, err: any) => {
@@ -115,13 +140,47 @@ export class PlayerManager {
         }
       }
 
+      // Start 5-minute auto-leave timer
+      p.startIdleTimer(300000, async () => {
+        const chId = p.textChannelId;
+        if (chId) {
+          try {
+            const ch = (await this.client.channels.fetch(chId).catch(() => null)) as TextChannel | null;
+            if (ch && ch.isTextBased()) {
+              await ch.send("🚪 *บอทออกจากห้องเสียงอัตโนมัติแล้ว เนื่องจากไม่มีการเล่นเพลงภายใน 5 นาที*");
+            }
+          } catch {}
+        }
+      });
+
       const channelId = p.textChannelId;
       if (channelId) {
         try {
           const channel = (await this.client.channels.fetch(channelId).catch(() => null)) as TextChannel | null;
           if (channel && channel.isTextBased()) {
+            const embed = new EmbedBuilder()
+              .setColor(config.bot.embedColor)
+              .setTitle("🎶 คิวเพลงเล่นจบแล้ว (Queue Ended)")
+              .setDescription(
+                [
+                  "เพลงในคิวเล่นจบทั้งหมดแล้ว บอทได้หยุดเล่นชั่วคราวและยังคงอยู่ในห้องเสียง",
+                  "",
+                  "⏰ บอทจะออกจากห้องเสียงอัตโนมัติภายใน **5 นาที** หากไม่มีการเปิดเพลงใหม่",
+                  "💡 สามารถกดปุ่ม **\"🚪 ให้ออกจากห้องเสียง\"** ด้านล่าง หรือใช้ `/fm leave` เพื่อให้บอทออกทันที",
+                ].join("\n")
+              );
+
+            const row = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId("idle_leave_voice")
+                .setLabel("ให้ออกจากห้องเสียง (Leave Voice)")
+                .setEmoji("🚪")
+                .setStyle(ButtonStyle.Danger)
+            );
+
             await channel.send({
-              content: "🎶 *The queue has ended. Use `/fm play` to play more songs!*",
+              embeds: [embed],
+              components: [row],
             });
           }
         } catch {}

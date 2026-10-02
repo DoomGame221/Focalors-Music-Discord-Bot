@@ -34,13 +34,13 @@ export function buildControllerEmbed(player: GuildPlayer, options?: ControllerOp
 
   const loopMode = player.repeatMode === "track" ? "🔂 Track" : player.repeatMode === "queue" ? "🔁 Queue" : "❌ Off";
   const autoplayState = (player as any).get?.("autoplay") ? "✅ On" : "❌ Off";
-  const filterState = player.filterManager?.isCustomFilterActive() ? "🎛️ Active" : "Default";
+  const filterState = player.activeFilter !== "reset" ? `🎛️ ${player.activeFilter}` : "Default";
 
   const embed = new EmbedBuilder()
     .setColor(config.bot.embedColor)
     .setAuthor({
       name: "Focalors Music — Now Playing",
-      iconURL: "https://cdn.discordapp.com/emojis/1153245412975923230.webp", // Fontaine Hydro symbol
+      iconURL: "https://i.giphy.com/SS8zaNFIbwyjcPdh8U.gif",
     })
     .setTitle(`🎶 ${truncate(title, 60)}`)
     .setURL(uri)
@@ -65,9 +65,14 @@ export function buildControllerEmbed(player: GuildPlayer, options?: ControllerOp
         value: current?.requester ? `<@${(current.requester as any).id || current.requester}>` : (options?.requesterId ? `<@${options.requesterId}>` : "Unknown"),
         inline: true,
       },
+      {
+        name: "📖 คู่มือปุ่มควบคุม",
+        value: "`⏮️ ย้อน` `⏪ -10s` `⏯️ เล่น/พัก` `⏩ +10s` `⏭️ ข้าม`\n`🔊 ปรับเสียง` `🔁 วนซ้ำ` `🔀 สลับ` `♾️ ออโต้เพลย์` `⏹️ หยุด`\n`📋 ดูคิว` `🎛️ ปรับ EQ` `💾 บันทึกเพลย์ลิสต์` `🚪 ออกจากห้อง`",
+        inline: false,
+      },
     ])
     .setFooter({
-      text: `Node: ${player.node?.id || "Main"} | Queue: ${player.queue.tracks.length} | Vol: ${player.volume}% | Loop: ${loopMode} | AutoPlay: ${autoplayState} | Filter: ${filterState}`,
+      text: `Queue: ${player.queue.tracks.length} | Vol: ${player.volume}% | Loop: ${loopMode} | AutoPlay: ${autoplayState} | Filter: ${filterState}`,
     });
 
   return embed;
@@ -79,7 +84,7 @@ export function buildControllerEmbed(player: GuildPlayer, options?: ControllerOp
 export function buildControllerComponents(player: GuildPlayer): ActionRowBuilder<MessageActionRowComponentBuilder>[] {
   const isPaused = player.paused;
 
-  // Row 1: Playback Controls (Emojis only)
+  // Row 1: Playback Controls (5 buttons)
   const row1 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("ctrl_prev")
@@ -103,14 +108,10 @@ export function buildControllerComponents(player: GuildPlayer): ActionRowBuilder
       .setStyle(ButtonStyle.Primary)
   );
 
-  // Row 2: Volume & Mode (Emojis only)
+  // Row 2: Volume, Modes & Stop (5 buttons)
   const row2 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId("ctrl_voldown")
-      .setEmoji("🔉")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("ctrl_volup")
+      .setCustomId("ctrl_volume")
       .setEmoji("🔊")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
@@ -122,12 +123,16 @@ export function buildControllerComponents(player: GuildPlayer): ActionRowBuilder
       .setEmoji("🔀")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
+      .setCustomId("ctrl_autoplay")
+      .setEmoji("♾️")
+      .setStyle((player as any).get?.("autoplay") ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder()
       .setCustomId("ctrl_stop")
       .setEmoji("⏹️")
       .setStyle(ButtonStyle.Danger)
   );
 
-  // Row 3: Menus, Utilities & Leave (Emojis only)
+  // Row 3: Menus, Utilities & Leave (4 buttons)
   const row3 = new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("ctrl_queuelist")
@@ -137,10 +142,6 @@ export function buildControllerComponents(player: GuildPlayer): ActionRowBuilder
       .setCustomId("ctrl_filters")
       .setEmoji("🎛️")
       .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("ctrl_autoplay")
-      .setEmoji("♾️")
-      .setStyle((player as any).get?.("autoplay") ? ButtonStyle.Primary : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId("ctrl_saveplaylist")
       .setEmoji("💾")
