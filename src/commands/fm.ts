@@ -289,8 +289,15 @@ async function handlePlay(
   client: FocalorsClient,
   voiceChannel: any
 ): Promise<void> {
-  const query = interaction.options.getString("query", true);
+  const rawQuery = interaction.options.getString("query", true);
   await interaction.deferReply();
+
+  let cleanQuery = rawQuery.trim();
+  // Clean youtu.be tracking parameters (e.g. ?si=...) and convert to standard watch URL
+  const youtuMatch = cleanQuery.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (youtuMatch && youtuMatch[1]) {
+    cleanQuery = `https://www.youtube.com/watch?v=${youtuMatch[1]}`;
+  }
 
   let player = client.lavalink.getPlayer(interaction.guildId!);
   if (!player) {
@@ -314,14 +321,17 @@ async function handlePlay(
     await player.connect();
   }
 
-  const res = await player.search(
-    { query, source: config.bot.defaultSearchPlatform as any },
-    interaction.user
-  );
+  const isUrl = /^https?:\/\//i.test(cleanQuery);
+  const searchPayload = isUrl
+    ? cleanQuery
+    : { query: cleanQuery, source: config.bot.defaultSearchPlatform as any };
+
+  const res = await player.search(searchPayload, interaction.user);
 
   if (!res || !res.tracks.length) {
+    const errorMsg = res?.exception?.message ? `\n*(Lavalink Error: ${res.exception.message})*` : "";
     await interaction.editReply({
-      content: `❌ No results found for: \`${escapeMarkdown(query)}\``,
+      content: `❌ No results found for: \`${escapeMarkdown(cleanQuery)}\`${errorMsg}`,
     });
     return;
   }
@@ -335,7 +345,7 @@ async function handlePlay(
           .setColor(config.bot.embedColor)
           .setTitle("📑 Added Playlist to Queue")
           .setDescription(
-            `Added **${res.tracks.length}** tracks from [${escapeMarkdown(res.playlist?.title || query)}](${query})\nTotal Duration: \`${formatDuration(totalDuration)}\``
+            `Added **${res.tracks.length}** tracks from [${escapeMarkdown(res.playlist?.title || cleanQuery)}](${cleanQuery})\nTotal Duration: \`${formatDuration(totalDuration)}\``
           ),
       ],
     });

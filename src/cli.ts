@@ -1,3 +1,4 @@
+import { copyFileSync, existsSync } from "node:fs";
 import { config } from "./config";
 import { getDatabase } from "./database/sqlite";
 import { formatDuration } from "./utils/formatters";
@@ -241,6 +242,17 @@ async function monitorLive(): Promise<void> {
   setInterval(refresh, 2000);
 }
 
+function syncLavalinkConfig(): void {
+  const projectRoot = import.meta.dir ? `${import.meta.dir}/..` : process.cwd();
+  const src = `${projectRoot}/application.yml`;
+  const dest = `${projectRoot}/lavalink-server/application.yml`;
+  if (existsSync(src) && existsSync(`${projectRoot}/lavalink-server`)) {
+    try {
+      copyFileSync(src, dest);
+    } catch {}
+  }
+}
+
 function showHelp(): void {
   console.log(BANNER);
   console.log(bold("Usage:"));
@@ -277,6 +289,7 @@ async function main(): Promise<void> {
 
     case "start":
       if (target === "all" || target === "lavalink") {
+        syncLavalinkConfig();
         await runSystemctl("start", "focalors-lavalink");
       }
       if (target === "all" || target === "bot") {
@@ -295,6 +308,7 @@ async function main(): Promise<void> {
 
     case "restart":
       if (target === "all" || target === "lavalink") {
+        syncLavalinkConfig();
         await runSystemctl("restart", "focalors-lavalink");
       }
       if (target === "all" || target === "bot") {

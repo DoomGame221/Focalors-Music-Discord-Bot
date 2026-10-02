@@ -45,9 +45,7 @@ if [ ! -f "Lavalink.jar" ]; then
     echo "Downloading latest Lavalink v4..."
     curl -Lo Lavalink.jar https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar
 fi
-if [ ! -f "application.yml" ]; then
-    cp "$PROJECT_DIR/application.yml" ./application.yml || true
-fi
+cp -f "$PROJECT_DIR/application.yml" ./application.yml
 cd "$PROJECT_DIR"
 
 echo "[6/6] Creating Systemd Service files..."
