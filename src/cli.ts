@@ -251,29 +251,61 @@ function syncLavalinkConfig(): void {
   if (existsSync(src) && existsSync(destDir)) {
     try {
       let content = readFileSync(src, "utf-8");
-      const token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
+
+      // Resolve token with multiple fallbacks
+      let token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
+
+      // Fallback 1: Read directly from project .env
+      if (!token) {
+        const envPath = path.join(projectRoot, ".env");
+        if (existsSync(envPath)) {
+          const envContent = readFileSync(envPath, "utf-8");
+          const match = envContent.match(/YOUTUBE_OAUTH_REFRESH_TOKEN\s*=\s*["']?(1\/\/[^"'\s\n\r]+)/);
+          if (match?.[1]) token = match[1];
+        }
+      }
+
+      // Fallback 2: Read from ~/.env (if created in user home)
+      if (!token && process.env.HOME) {
+        const homeEnv = path.join(process.env.HOME, ".env");
+        if (existsSync(homeEnv)) {
+          const envContent = readFileSync(homeEnv, "utf-8");
+          const match = envContent.match(/YOUTUBE_OAUTH_REFRESH_TOKEN\s*=\s*["']?(1\/\/[^"'\s\n\r]+)/);
+          if (match?.[1]) token = match[1];
+        }
+      }
+
+      // Fallback 3: Preserve existing token in dest if present
+      if (!token && existsSync(dest)) {
+        try {
+          const destContent = readFileSync(dest, "utf-8");
+          const match = destContent.match(/refreshToken:\s*["']?(1\/\/[^"'\s\n\r]+)/);
+          if (match?.[1]) token = match[1];
+        } catch {}
+      }
+
       if (token) {
         content = content.replace("${YOUTUBE_OAUTH_REFRESH_TOKEN:}", token);
       }
-      writeFileSync(dest, content, "utf-8");
-      console.log(green("✔ Synced application.yml to lavalink-server"));
-    } catch {
-      if (process.platform !== "win32") {
-        try {
+
+      try {
+        writeFileSync(dest, content, "utf-8");
+        console.log(
+          green(`✔ Synced application.yml to lavalink-server ${token ? "(with OAuth token)" : "(without OAuth token)"}`)
+        );
+      } catch {
+        if (process.platform !== "win32") {
           const tempFile = path.join(projectRoot, ".temp_app_config.yml");
-          let content = readFileSync(src, "utf-8");
-          const token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
-          if (token) {
-            content = content.replace("${YOUTUBE_OAUTH_REFRESH_TOKEN:}", token);
-          }
           writeFileSync(tempFile, content, "utf-8");
           Bun.spawnSync(["sudo", "cp", "-f", tempFile, dest]);
           Bun.spawnSync(["rm", "-f", tempFile]);
-          console.log(green("✔ Synced application.yml to lavalink-server (via sudo)"));
-        } catch (err: any) {
-          console.log(yellow(`[Warning] Could not sync application.yml: ${err?.message || err}`));
+          console.log(
+            green(`✔ Synced application.yml to lavalink-server via sudo ${token ? "(with OAuth token)" : "(without OAuth token)"}`)
+          );
         }
       }
+    } catch (err: any) {
+      console.log(yellow(`[Warning] Could not sync application.yml: ${err?.message || err}`));
     }
   }
 }
