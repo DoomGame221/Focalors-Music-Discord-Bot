@@ -71,14 +71,19 @@ export function buildVolumeMenu(player: GuildPlayer): {
       .setEmoji("🔊")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId("vol_btn_100")
-      .setLabel("รีเซ็ต (100%)")
-      .setEmoji("🔄")
+      .setCustomId("vol_btn_custom")
+      .setLabel("กรอกเลขเอง")
+      .setEmoji("✏️")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId("vol_btn_mute")
       .setLabel("ปิดเสียง (0%)")
       .setEmoji("🔇")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("vol_btn_close")
+      .setLabel("ปิดหน้าต่าง")
+      .setEmoji("❌")
       .setStyle(ButtonStyle.Danger)
   );
 

@@ -300,7 +300,11 @@ export class GuildPlayer extends EventEmitter {
     }
   }
 
+  public isDestroyed: boolean = false;
+  private isStopping: boolean = false;
+
   public stopPlaying(clearQueue: boolean = true): void {
+    this.isStopping = true;
     if (clearQueue) {
       this.queue.tracks.length = 0;
     }
@@ -328,6 +332,8 @@ export class GuildPlayer extends EventEmitter {
   }
 
   public destroy(reason?: string): void {
+    if (this.isDestroyed) return;
+    this.isDestroyed = true;
     logger.info(`Destroying player for guild [${this.guildId}]: ${reason || "manual"}`, "Player");
     this.stopIdleTimer();
     this.stopPlaying(true);
@@ -343,6 +349,13 @@ export class GuildPlayer extends EventEmitter {
   private setupAudioPlayerEvents(): void {
     this.audioPlayer.on(AudioPlayerStatus.Idle, async () => {
       this.stopPositionTimer();
+
+      if (this.isDestroyed) return;
+
+      if (this.isStopping) {
+        this.isStopping = false;
+        return;
+      }
 
       if (this.queue.current) {
         this.queue.previous.unshift(this.queue.current);

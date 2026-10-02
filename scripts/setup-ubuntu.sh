@@ -85,17 +85,17 @@ else
     echo "⚠️ .env file not found yet. Please create .env with DISCORD_TOKEN before deploying commands."
 fi
 
-echo "[8/8] Starting / Restarting focalors-bot service..."
-systemctl restart focalors-bot
-sleep 2
+echo "[8/8] Checking system & tool readiness..."
+focalors status || true
 
 echo "=========================================================="
-echo " ✔ Complete setup finished! Focalors is active & running! "
+echo " ✔ Complete setup finished! All tools & dependencies ready."
 echo "=========================================================="
-focalors status || true
+echo "To start the bot, run:"
+echo " • focalors start"
 echo ""
-echo "Helpful commands:"
-echo " • View live logs:     focalors logs"
-echo " • Monitor bot:        focalors monitor"
-echo " • Restart service:    focalors restart"
+echo "Other helpful commands:"
+echo " • focalors status   (check bot & tools status)"
+echo " • focalors logs     (view live logs)"
+echo " • focalors restart  (restart bot service)"
 echo "=========================================================="

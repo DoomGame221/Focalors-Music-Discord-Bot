@@ -29,6 +29,7 @@ import { getVoiceChannel } from "../utils/voice";
 
 export class FocalorsClient extends Client {
   public playerManager: PlayerManager;
+  private userVolumePanels = new Map<string, { messageId: string }>();
 
   // Compatibility getter so existing code calling client.lavalink continues to work
   public get lavalink(): PlayerManager {
@@ -196,6 +197,33 @@ export class FocalorsClient extends Client {
       }
       return;
     }
+    if (customId === "vol_btn_custom") {
+      const modal = new ModalBuilder()
+        .setCustomId("modal_custom_volume")
+        .setTitle("🔊 กำหนดระดับเสียง (0 - 150%)");
+
+      const volInput = new TextInputBuilder()
+        .setCustomId("volume_number_input")
+        .setLabel("ระดับเสียงที่ต้องการ (0 - 150)")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder(`เช่น 65 หรือ 80 (ปัจจุบัน: ${player ? player.volume : 100}%)`)
+        .setMinLength(1)
+        .setMaxLength(3)
+        .setRequired(true);
+
+      const row = new ActionRowBuilder<TextInputBuilder>().addComponents(volInput);
+      modal.addComponents(row);
+      await interaction.showModal(modal);
+      return;
+    }
+    if (customId === "vol_btn_close") {
+      const userKey = `${guildId}_${interaction.user.id}`;
+      this.userVolumePanels.delete(userKey);
+      await interaction.deleteReply().catch(async () => {
+        await interaction.update({ content: "❌ *ปิดหน้าต่างปรับระดับเสียงแล้ว*", embeds: [], components: [] });
+      });
+      return;
+    }
     if (customId === "vol_btn_100") {
       if (player) {
         player.setVolume(100);
@@ -277,12 +305,25 @@ export class FocalorsClient extends Client {
         break;
       }
       case "ctrl_volume": {
-        const menu = buildVolumeMenu(player);
-        await interaction.followUp({
-          embeds: [menu.embed],
-          components: menu.components,
-          ephemeral: true,
-        });
+        const userKey = `${guildId}_${interaction.user.id}`;
+        const existing = this.userVolumePanels.get(userKey);
+
+        if (existing) {
+          try {
+            await interaction.webhook.deleteMessage(existing.messageId);
+          } catch {}
+          this.userVolumePanels.delete(userKey);
+        } else {
+          const menu = buildVolumeMenu(player);
+          const msg = await interaction.followUp({
+            embeds: [menu.embed],
+            components: menu.components,
+            ephemeral: true,
+          });
+          if (msg?.id) {
+            this.userVolumePanels.set(userKey, { messageId: msg.id });
+          }
+        }
         break;
       }
       case "ctrl_loop": {
@@ -467,6 +508,34 @@ export class FocalorsClient extends Client {
         ],
         ephemeral: true,
       });
+      return;
+    }
+
+    if (interaction.customId === "modal_custom_volume") {
+      const input = interaction.fields.getTextInputValue("volume_number_input");
+      const num = parseInt(input.trim(), 10);
+      const player = this.playerManager.getPlayer(interaction.guildId!);
+      if (!player) {
+        await interaction.reply({ content: "❌ No active player found!", ephemeral: true });
+        return;
+      }
+      if (isNaN(num) || num < 0 || num > 150) {
+        await interaction.reply({
+          content: "❌ กรุณากรอกตัวเลขระดับเสียงระหว่าง 0 ถึง 150 เท่านั้น!",
+          ephemeral: true,
+        });
+        return;
+      }
+      player.setVolume(num);
+      controllerUpdater.requestUpdate(this, player);
+      const menu = buildVolumeMenu(player);
+      await interaction.reply({
+        content: `🔊 ปรับระดับเสียงเป็น **${num}%** เรียบร้อยแล้ว!`,
+        embeds: [menu.embed],
+        components: menu.components,
+        ephemeral: true,
+      });
+      return;
     }
   }
 }
