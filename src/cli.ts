@@ -260,7 +260,15 @@ function syncLavalinkConfig(): void {
     } catch {
       if (process.platform !== "win32") {
         try {
-          Bun.spawnSync(["sudo", "cp", "-f", src, dest]);
+          const tempFile = path.join(projectRoot, ".temp_app_config.yml");
+          let content = readFileSync(src, "utf-8");
+          const token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
+          if (token) {
+            content = content.replace("${YOUTUBE_OAUTH_REFRESH_TOKEN:}", token);
+          }
+          writeFileSync(tempFile, content, "utf-8");
+          Bun.spawnSync(["sudo", "cp", "-f", tempFile, dest]);
+          Bun.spawnSync(["rm", "-f", tempFile]);
           console.log(green("✔ Synced application.yml to lavalink-server (via sudo)"));
         } catch (err: any) {
           console.log(yellow(`[Warning] Could not sync application.yml: ${err?.message || err}`));
