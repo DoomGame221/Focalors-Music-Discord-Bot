@@ -124,8 +124,10 @@ export class FocalorsClient extends Client {
       return;
     }
 
-    // Defer update immediately to feel instantaneous
-    await interaction.deferUpdate();
+    // Defer update immediately for normal buttons (Modals cannot be deferred)
+    if (customId !== "ctrl_saveplaylist") {
+      await interaction.deferUpdate();
+    }
 
     switch (customId) {
       case "ctrl_prev": {
@@ -243,11 +245,7 @@ export class FocalorsClient extends Client {
           .setRequired(true);
 
         modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput));
-        // Note: For modal, cannot be after deferUpdate, so handle in interaction
-        await interaction.followUp({
-          content: "To save the playlist, please use the command: `/fm playlist save <name>`",
-          ephemeral: true,
-        });
+        await interaction.showModal(modal);
         break;
       }
     }
@@ -285,8 +283,9 @@ export class FocalorsClient extends Client {
       const selectedFilter = interaction.values[0];
       await applyFilterPreset(player, selectedFilter);
       controllerUpdater.requestUpdate(this, player);
+      const friendlyName = selectedFilter.replace("filter_", "").replace(/_/g, " ").toUpperCase();
       await interaction.reply({
-        content: `🎛️ Applied audio effect: \`${selectedFilter}\``,
+        content: `🎛️ Applied audio effect: **${friendlyName}**`,
         ephemeral: true,
       });
     }

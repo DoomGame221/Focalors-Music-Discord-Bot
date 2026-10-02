@@ -32,6 +32,31 @@ export const controllerUpdater = {
   },
 
   /**
+   * Delete previous controller message to prevent flooding chat
+   */
+  async deleteOldController(client: Client, guildId: string): Promise<void> {
+    const state = controllers.get(guildId);
+    if (!state) return;
+
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+
+    try {
+      const channel = await client.channels.fetch(state.channelId).catch(() => null) as TextChannel | null;
+      if (channel && channel.isTextBased()) {
+        const message = await channel.messages.fetch(state.messageId).catch(() => null);
+        if (message && message.deletable) {
+          await message.delete().catch(() => {});
+        }
+      }
+    } catch {
+      // Ignore errors deleting previous message
+    }
+  },
+
+  /**
    * Request a debounced update of the controller message
    */
   requestUpdate(client: Client, player: Player): void {

@@ -56,7 +56,6 @@ plugins:
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
-      - TV
     oauth:
       enabled: true
       refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN:}"

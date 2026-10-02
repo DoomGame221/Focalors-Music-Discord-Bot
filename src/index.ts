@@ -43,6 +43,14 @@ async function bootstrap(): Promise<void> {
 
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+    // Global error handlers to prevent silent bot crashes
+    process.on("unhandledRejection", (reason: any) => {
+      logger.error("Unhandled Promise Rejection:", "Process", reason);
+    });
+    process.on("uncaughtException", (err: any) => {
+      logger.error("Uncaught Process Exception:", "Process", err);
+    });
   } catch (err) {
     logger.error("Fatal error during bot initialization", "Bootstrap", err);
     process.exit(1);

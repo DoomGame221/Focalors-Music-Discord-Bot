@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { config } from "./config";
 import { getDatabase } from "./database/sqlite";
@@ -250,7 +250,12 @@ function syncLavalinkConfig(): void {
   const dest = path.join(destDir, "application.yml");
   if (existsSync(src) && existsSync(destDir)) {
     try {
-      copyFileSync(src, dest);
+      let content = readFileSync(src, "utf-8");
+      const token = process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "";
+      if (token) {
+        content = content.replace("${YOUTUBE_OAUTH_REFRESH_TOKEN:}", token);
+      }
+      writeFileSync(dest, content, "utf-8");
       console.log(green("✔ Synced application.yml to lavalink-server"));
     } catch {
       if (process.platform !== "win32") {

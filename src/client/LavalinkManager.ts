@@ -67,6 +67,9 @@ export function createLavalinkManager(client: Client): LavalinkManager {
       });
       const components = buildControllerComponents(player);
 
+      // Try to delete the previous controller message to prevent flooding
+      await controllerUpdater.deleteOldController(client, player.guildId);
+
       const msg = await channel.send({
         embeds: [embed],
         components,
@@ -83,9 +86,21 @@ export function createLavalinkManager(client: Client): LavalinkManager {
     controllerUpdater.requestUpdate(client, player);
   });
 
-  manager.on("trackError", (player, track, payload: any) => {
+  manager.on("trackError", async (player, track, payload: any) => {
     const errorDetails = payload?.exception?.message || payload?.error || JSON.stringify(payload);
     logger.error(`Track error playing "${track?.info?.title}" in guild [${player.guildId}]: ${errorDetails}`, "Player");
+
+    const channelId = player.textChannelId;
+    if (channelId) {
+      try {
+        const channel = await client.channels.fetch(channelId).catch(() => null) as TextChannel | null;
+        if (channel && channel.isTextBased()) {
+          await channel.send({
+            content: `⚠️ **ไม่สามารถเล่นเพลงนี้ได้:** ${track?.info?.title ? `*${track.info.title}*` : ""}\n> \`${errorDetails}\``,
+          });
+        }
+      } catch {}
+    }
   });
 
   manager.on("trackStuck", (player, track, payload: any) => {
